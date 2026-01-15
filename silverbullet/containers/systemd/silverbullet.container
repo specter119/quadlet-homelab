@@ -1,0 +1,39 @@
+[Unit]
+Description=SilverBullet - Personal Knowledge Management
+After=traefik.service
+Wants=traefik.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Environment=TZ=Asia/Shanghai
+Environment=PUID=1000
+Restart=unless-stopped
+
+[Container]
+NoNewPrivileges=true
+Image=ghcr.io/silverbulletmd/silverbullet
+Network=traefik.network
+
+Volume=%D/silverbullet:/space
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.silverbullet-http.entrypoints=http
+Label=traefik.http.routers.silverbullet-http.middlewares=redir-https@file
+Label=traefik.http.routers.silverbullet-http.rule=Host(`silverbullet.{{domain}}`)
+Label=traefik.http.routers.silverbullet-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.silverbullet-https.entrypoints=https
+Label=traefik.http.routers.silverbullet-https.tls=true
+Label=traefik.http.routers.silverbullet-https.middlewares=gzip@file
+Label=traefik.http.routers.silverbullet-https.rule=Host(`silverbullet.{{domain}}`)
+Label=traefik.http.services.silverbullet.loadbalancer.server.port=3000
+
+[Install]
+WantedBy=default.target

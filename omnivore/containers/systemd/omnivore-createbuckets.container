@@ -1,0 +1,25 @@
+[Unit]
+Description=Omnivore MinIO Bucket Creation
+After=omnivore-minio.service
+Requires=omnivore-minio.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+[Container]
+Image=docker.io/minio/mc
+
+Secret=omnivore-minio-user,type=env,target=MINIO_USER
+Secret=omnivore-minio-password,type=env,target=MINIO_PASSWORD
+
+Network=omnivore.network
+Entrypoint=/bin/sh
+
+Exec=-c "sleep 5 && until mc alias set myminio http://minio:9000 $MINIO_USER $MINIO_PASSWORD; do echo 'waiting...' && sleep 1; done && mc mb myminio/omnivore --ignore-existing && mc anonymous set public myminio/omnivore"
+
+[Install]
+WantedBy=omnivore.target

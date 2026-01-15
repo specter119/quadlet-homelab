@@ -1,0 +1,28 @@
+[Unit]
+Description=Omnivore MinIO Object Storage
+PartOf=omnivore.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/minio/minio
+
+Secret=omnivore-minio-user,type=env,target=MINIO_ROOT_USER
+Secret=omnivore-minio-password,type=env,target=MINIO_ROOT_PASSWORD
+Network=omnivore.network
+NetworkAlias=minio
+Volume=omnivore-minio-data.volume:/data
+
+Exec=server /data
+
+HealthCmd=mc ready local
+HealthInterval=5s
+HealthTimeout=3s
+HealthRetries=10
+
+[Install]
+WantedBy=omnivore.target

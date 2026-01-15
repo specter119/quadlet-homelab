@@ -1,0 +1,23 @@
+[Unit]
+Description=Plane MinIO Object Storage
+PartOf=plane.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/minio/minio:latest
+
+Secret=plane-minio-user,type=env,target=MINIO_ROOT_USER
+Secret=plane-minio-password,type=env,target=MINIO_ROOT_PASSWORD
+Network=plane.network
+NetworkAlias=plane-minio
+Volume=plane-minio-data.volume:/export
+
+Exec=server /export --console-address :9090
+
+[Install]
+WantedBy=plane.target

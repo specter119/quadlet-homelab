@@ -1,0 +1,30 @@
+[Unit]
+Description=Langfuse MinIO Object Storage
+PartOf=langfuse.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=cgr.dev/chainguard/minio
+Network=langfuse.network
+NetworkAlias=minio
+PublishPort=9090:9000
+Volume=langfuse-minio-data.volume:/data:U
+
+Secret=langfuse-minio-user,type=env,target=MINIO_ROOT_USER
+Secret=langfuse-minio-password,type=env,target=MINIO_ROOT_PASSWORD
+
+PodmanArgs=--entrypoint '["sh", "-c", "mkdir -p /data/langfuse && exec minio server --address :9000 --console-address :9001 /data"]'
+
+HealthCmd=mc ready local
+HealthInterval=1s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=1s
+
+[Install]
+WantedBy=langfuse.target

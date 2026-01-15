@@ -1,0 +1,37 @@
+[Unit]
+Description=Omnivore Image Proxy Service
+PartOf=omnivore.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=ghcr.io/omnivore-app/sh-image-proxy:latest
+
+Secret=omnivore-image-proxy-secret,type=env,target=IMAGE_PROXY_SECRET
+
+Network=omnivore.network
+Network=traefik.network
+NetworkAlias=image-proxy
+
+# Traefik labels for image proxy
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+Label=traefik.http.routers.omnivore-images-http.entrypoints=http
+Label=traefik.http.routers.omnivore-images-http.rule="Host(`omnivore-api.{{domain}}`) && PathPrefix(`/images`)"
+Label=traefik.http.routers.omnivore-images-http.middlewares=redir-https@file
+Label=traefik.http.routers.omnivore-images-http.service=noop@internal
+
+Label=traefik.http.routers.omnivore-images-https.entrypoints=https
+Label=traefik.http.routers.omnivore-images-https.rule="Host(`omnivore-api.{{domain}}`) && PathPrefix(`/images`)"
+Label=traefik.http.routers.omnivore-images-https.tls=true
+Label=traefik.http.middlewares.strip-images.stripprefix.prefixes=/images
+Label=traefik.http.routers.omnivore-images-https.middlewares=strip-images
+Label=traefik.http.services.omnivore-images.loadbalancer.server.port=8080
+
+[Install]
+WantedBy=omnivore.target

@@ -1,0 +1,257 @@
+# AGENTS.md
+
+## 文档分工
+
+| 文档 | 读者 | 内容 |
+|------|------|------|
+| README.md | 用户 | 项目简介、服务列表、冷启动、常用命令 |
+| AGENTS.md | 开发者/AI | 新建服务流程、Quadlet 规范、模板、Secrets 管理 |
+| docs/*.md | 开发者/AI | 特定服务的详细配置（如 Traefik SSL、路由规则） |
+
+## 新建服务检查清单
+
+每次新建微服务时，必须完成以下步骤：
+
+1. **创建服务目录结构**
+
+   ```plain
+   <service>/
+   └── containers/systemd/
+       └── <service>.container
+   ```
+
+2. **更新 `.dotter/global.toml`** - 添加部署配置
+
+   ```toml
+   [<service>.files]
+   <service> = '~/.config'
+   ```
+
+3. **更新 `.dotter/local.toml`** - 启用新服务
+
+   ```toml
+   packages = ["traefik", "dozzle", "silverbullet", "langfuse",  "<service>"]
+   ```
+
+4. **更新 `README.md`** - 服务列表添加新服务
+
+5. **更新 `docs/traefik.md`** - hosts 临时配置添加新域名
+
+6. **配置 Traefik labels** - 在 .container 文件中添加（见下方模板）
+
+**命名规范**：
+
+- 域名：`<service>.{{domain}}`（domain 变量在 `.dotter/local.toml` 定义）
+- 网络：`traefik.network`
+
+## Quadlet 基础
+
+### 文件类型
+
+| 扩展名 | 用途 | 部署位置 |
+|--------|------|----------|
+| `.container` | 容器定义 | `~/.config/containers/systemd/` |
+| `.volume` | 命名卷定义 | `~/.config/containers/systemd/` |
+| `.network` | 网络定义 | `~/.config/containers/systemd/` |
+| `.target` | 服务组 | `~/.config/systemd/user/` |
+
+### 自启动
+
+Quadlet 文件由 generator 生成，**不能用 `systemctl enable`**。
+自启动通过 `[Install] WantedBy=...` 配置，`daemon-reload` 时自动生效。
+
+### 注意事项
+
+**Label 值特殊字符必须加引号**：
+
+```ini
+# ❌ 错误 - 特殊字符后的内容会被截断
+Label=traefik.http.routers.xxx.rule=Host(`a.com`) && PathPrefix(`/path`)
+
+# ✅ 正确 - 双引号保护完整值
+Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
+```
+
+## 单容器服务模板
+
+新服务 `.container` 文件模板：
+
+```ini
+[Unit]
+Description=<Service Description>
+After=traefik.service
+Wants=traefik.service
+
+# 禁用网络依赖，避免 WSL 等环境下启动超时
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=unless-stopped
+
+[Container]
+Image=<image>
+Network=traefik.network
+
+# Traefik labels - 启用发现
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+# HTTP -> HTTPS 重定向
+Label=traefik.http.routers.<service>-http.entrypoints=http
+Label=traefik.http.routers.<service>-http.rule=Host(`<service>.{{domain}}`)
+Label=traefik.http.routers.<service>-http.middlewares=redir-https@file
+Label=traefik.http.routers.<service>-http.service=noop@internal
+
+# HTTPS 路由
+Label=traefik.http.routers.<service>-https.entrypoints=https
+Label=traefik.http.routers.<service>-https.rule=Host(`<service>.{{domain}}`)
+Label=traefik.http.routers.<service>-https.tls=true
+Label=traefik.http.routers.<service>-https.middlewares=gzip@file
+Label=traefik.http.services.<service>.loadbalancer.server.port=<port>
+
+[Install]
+WantedBy=default.target
+```
+
+**说明**：
+
+- `<service>`: 服务名，如 `dozzle`, `silverbullet`
+- `<port>`: 容器内部端口，如 `8080`, `3000`
+- `DefaultDependencies=false`: 禁用 `network-online.target` 依赖，避免 WSL/rootless 环境启动超时
+- `redir-https@file`, `gzip@file`: 引用 `middlewares.toml` 中定义的共享中间件
+- `noop@internal`: Traefik 内置空服务，用于重定向场景
+
+## 多容器服务栈
+
+当服务需要数据库等辅助容器时，涉及：容器编排、容器间通信、Secrets 管理。
+
+### 容器编排
+
+使用 `.target` 统一管理多个容器。
+
+**容器文件配置**：
+
+```ini
+[Unit]
+PartOf=<service>.target      # 随 target 一起 stop/restart
+
+[Install]
+WantedBy=<service>.target    # 随 target 一起 start（自启动关键）
+```
+
+**Target 文件** (`<service>.target`)：
+
+```ini
+[Unit]
+Description=<Service> Stack
+
+# 可选：若需整个栈随系统自启动，添加以下配置
+[Install]
+WantedBy=default.target
+```
+
+> `.target` 放在 `~/.config/systemd/user/`，不是 `containers/systemd/`。
+
+### 容器间通信
+
+Quadlet 生成的容器名会加 `systemd-` 前缀（如 `systemd-langfuse-postgres`），导致无法用简短名称访问。使用 `NetworkAlias` 提供 DNS 别名：
+
+```ini
+# 数据库容器 - 需要被其他容器访问，提供短别名
+NetworkAlias=postgres
+
+# Web 容器 - 只访问其他服务，无需 alias
+```
+
+### Secrets 管理
+
+使用 **Podman Secret** 管理敏感配置，密钥存储在本地，不进 git。
+
+> **触发条件**：当 `.container` 文件中发现明文密码/密钥时，应提取到 `.dotter/secrets/<service>.conf`，改用 `Secret=` 引用。
+
+#### 文件结构
+
+```
+.dotter/
+├── secrets/
+│   ├── langfuse.conf         # 密钥定义，提交 git
+│   ├── plane.conf
+│   └── omnivore.conf
+├── pre_deploy.sh             # 部署前初始化 secrets
+└── post_deploy.sh            # 部署后 daemon-reload
+```
+
+> **为什么放在 `.dotter/secrets/`**：dotter 没有 ignore/exclude 机制。若放在各 service 目录，简单的目录映射会产生同名冲突或误部署。
+
+#### secrets.conf 格式
+
+```
+<name>:<type>:<param>
+```
+
+| type | 说明 | param |
+|------|------|-------|
+| `hex` | 随机 hex 字符串 | 字节数 |
+| `fixed` | 固定值（用户名等） | 值 |
+| `computed` | 依赖其他 secret 构造 | 模板（`${other-secret}`） |
+
+#### Container 引用
+
+```ini
+[Container]
+Secret=<secret-name>,type=env,target=<ENV_VAR>
+```
+
+### 数据库连接一致性
+
+当应用容器通过 `DATABASE_URL` 连接数据库容器时，**两边配置必须一致**：
+
+示例 - `<service>.conf` 定义：
+
+```
+<service>-postgres-password:hex:16
+<service>-database-url:computed:postgresql://<service>:${<service>-postgres-password}@postgres:5432/<service>
+```
+
+对应的 `<service>-postgres.container` 必须匹配：
+
+```ini
+# ✅ 正确
+Environment=POSTGRES_USER=<service>
+Environment=POSTGRES_DB=<service>
+NetworkAlias=postgres
+
+# ❌ 错误 - 会导致认证失败
+Environment=POSTGRES_USER=postgres
+Environment=POSTGRES_DB=postgres
+```
+
+**检查清单**：
+
+| DATABASE_URL 参数 | 对应容器配置 |
+|-------------------|-------------|
+| 用户名 (`<service>:`) | `POSTGRES_USER=<service>` |
+| 数据库名 (`/<service>`) | `POSTGRES_DB=<service>` |
+| 主机名 (`@postgres:`) | `NetworkAlias=postgres` |
+
+### Hook 脚本注意事项
+
+`pre_deploy.sh` / `post_deploy.sh` 会被 dotter 的 handlebars 模板引擎处理。
+若脚本中需要字面的 `{{`（如 podman `--format`），必须用 `\{{` 转义：
+
+```bash
+# ❌ 错误 - 被 handlebars 解析报错
+podman secret ls --format '{{.Name}}'
+
+# ✅ 正确 - 反斜杠转义
+podman secret ls --format '\{{.Name}}'
+```
+
+## 参考命令
+
+| 主题 | 命令 |
+|------|------|
+| Quadlet 参数 | `man podman-systemd.unit` |
+| systemd 单元（specifiers、依赖等） | `man systemd.unit` |
+| Podman Secret | `man podman-secret` |

@@ -1,0 +1,5 @@
+[Unit]
+Description=Omnivore Read-it-Later Service Stack
+
+[Install]
+WantedBy=default.target

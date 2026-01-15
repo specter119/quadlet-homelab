@@ -1,0 +1,5 @@
+[Unit]
+Description=Plane Application Stack
+
+[Install]
+WantedBy=default.target

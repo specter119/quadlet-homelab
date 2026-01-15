@@ -1,0 +1,30 @@
+[Unit]
+Description=Langfuse ClickHouse Database
+PartOf=langfuse.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/clickhouse/clickhouse-server
+Network=langfuse.network
+NetworkAlias=clickhouse
+User=101:101
+Volume=langfuse-clickhouse-data.volume:/var/lib/clickhouse
+Volume=langfuse-clickhouse-logs.volume:/var/log/clickhouse-server
+
+Environment=CLICKHOUSE_DB=default
+Environment=CLICKHOUSE_USER=clickhouse
+Secret=langfuse-clickhouse-password,type=env,target=CLICKHOUSE_PASSWORD
+
+HealthCmd=wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=10
+HealthStartPeriod=1s
+
+[Install]
+WantedBy=langfuse.target

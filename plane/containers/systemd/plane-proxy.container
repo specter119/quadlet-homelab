@@ -1,0 +1,44 @@
+[Unit]
+Description=Plane Proxy (Internal Router)
+PartOf=plane.target
+Requires=plane-web.service plane-api.service plane-space.service plane-admin.service plane-live.service
+After=plane-web.service plane-api.service plane-space.service plane-admin.service plane-live.service traefik.service
+Wants=traefik.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=artifacts.plane.so/makeplane/plane-proxy:stable
+Network=plane.network
+Network=traefik.network
+NetworkAlias=proxy
+
+# Proxy environment
+Environment=APP_DOMAIN=plane.{{domain}}
+Environment=FILE_SIZE_LIMIT=5242880
+Environment=BUCKET_NAME=uploads
+Environment=SITE_ADDRESS=:80
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.plane-http.entrypoints=http
+Label=traefik.http.routers.plane-http.middlewares=redir-https@file
+Label=traefik.http.routers.plane-http.rule=Host(`plane.{{domain}}`)
+Label=traefik.http.routers.plane-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.plane-https.entrypoints=https
+Label=traefik.http.routers.plane-https.tls=true
+Label=traefik.http.routers.plane-https.middlewares=gzip@file
+Label=traefik.http.routers.plane-https.rule=Host(`plane.{{domain}}`)
+Label=traefik.http.services.plane.loadbalancer.server.port=80
+
+[Install]
+WantedBy=plane.target

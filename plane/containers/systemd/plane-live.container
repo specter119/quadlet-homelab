@@ -1,0 +1,28 @@
+[Unit]
+Description=Plane Live (Real-time Collaboration)
+PartOf=plane.target
+After=plane-api.service plane-web.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=artifacts.plane.so/makeplane/plane-live:stable
+
+Secret=plane-live-secret-key,type=env,target=LIVE_SENTRY_SECRET_KEY
+
+Network=plane.network
+NetworkAlias=live
+
+Environment=API_BASE_URL=http://api:8000
+
+# Redis
+Environment=REDIS_HOST=plane-redis
+Environment=REDIS_PORT=6379
+Environment=REDIS_URL=redis://plane-redis:6379/
+
+[Install]
+WantedBy=plane.target

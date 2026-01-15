@@ -1,0 +1,21 @@
+[traefik.files]
+traefik = '~/.config'
+
+[traefik.files.'traefik/traefik']
+target = '~/.config/traefik'
+type = 'template'
+
+[silverbullet.files]
+silverbullet = '~/.config'
+
+[langfuse.files]
+langfuse = '~/.config'
+
+[dozzle.files]
+dozzle = '~/.config'
+
+[omnivore.files]
+omnivore = '~/.config'
+
+[plane.files]
+plane = '~/.config'

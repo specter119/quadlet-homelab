@@ -1,0 +1,18 @@
+[Unit]
+Description=Plane Web Frontend
+PartOf=plane.target
+After=plane-api.service plane-worker.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=artifacts.plane.so/makeplane/plane-frontend:stable
+Network=plane.network
+NetworkAlias=web
+
+[Install]
+WantedBy=plane.target

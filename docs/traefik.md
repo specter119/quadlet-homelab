@@ -1,0 +1,137 @@
+# Traefik 配置指南
+
+> 官方文档: <https://doc.traefik.io/traefik/>
+
+## 冷启动配置
+
+### WSL 低端口绑定
+
+Rootless Podman 默认无法绑定 80/443 端口。WSL 环境下需配置 sysctl 允许非特权用户绑定低端口：
+
+```bash
+sudo tee /etc/sysctl.d/99-unprivileged-ports.conf << 'EOF'
+net.ipv4.ip_unprivileged_port_start=80
+EOF
+```
+
+重启 WSL 后生效（`wsl --shutdown`）。验证：
+
+```bash
+sysctl net.ipv4.ip_unprivileged_port_start
+# 输出应为 80
+```
+
+### SSL 证书初始化
+
+使用 [certs-maker](https://github.com/soulteary/certs-maker) 生成自签名泛域名证书（以你的 domain 为例）：
+
+```bash
+# 创建证书目录
+mkdir -p ~/.local/state/traefik/ssl
+
+# 设置域名（与 .dotter/local.toml 中的 domain 一致）
+DOMAIN=worklab.com  # 或 homelab.com
+
+# 生成泛域名证书（有效期 10 年）
+podman run --rm \
+  -v ~/.local/state/traefik/ssl:/ssl \
+  docker.io/soulteary/certs-maker \
+  "--CERT_DNS=${DOMAIN},*.${DOMAIN}"
+
+# 验证证书
+openssl x509 -in ~/.local/state/traefik/ssl/${DOMAIN}.pem.crt -text -noout
+```
+
+配置 `traefik/certs.toml`（dotter 会自动替换 `{{domain}}`）：
+
+```toml
+[tls.stores.default.defaultCertificate]
+certFile = "/data/ssl/{{domain}}.pem.crt"
+keyFile = "/data/ssl/{{domain}}.pem.key"
+
+[[tls.certificates]]
+certFile = "/data/ssl/{{domain}}.pem.crt"
+keyFile = "/data/ssl/{{domain}}.pem.key"
+```
+
+### 临时域名配置
+
+开发环境在 Windows `C:\Windows\System32\drivers\etc\hosts` 添加（WSL IP 通过 `ip addr show eth0` 获取）：
+
+```
+<WSL_IP> traefik.<your-domain>
+<WSL_IP> silverbullet.<your-domain>
+<WSL_IP> dozzle.<your-domain>
+<WSL_IP> langfuse.<your-domain>
+<WSL_IP> omnivore.<your-domain>
+<WSL_IP> omnivore-api.<your-domain>
+<WSL_IP> plane.<your-domain>
+```
+
+> 将 `<your-domain>` 替换为你的实际域名（如 `worklab.com` 或 `homelab.com`）
+
+## 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Traefik                              │
+├─────────────────────────────────────────────────────────────┤
+│  File Provider (middlewares.toml)                           │
+│  ├── 共享中间件: gzip, redir-https                           │
+│  └── Dashboard 路由 → api@internal                          │
+├─────────────────────────────────────────────────────────────┤
+│  Docker Provider (container labels)                         │
+│  ├── dozzle      → dozzle.{{domain}}                        │
+│  ├── silverbullet → silverbullet.{{domain}}                 │
+│  └── <service>   → <service>.{{domain}}                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+> **注**：`{{domain}}` 是 dotter 模板变量，默认 `homelab.com`，可在 `.dotter/local.toml` 覆盖为 `worklab.com` 等。
+
+**设计原则**：
+
+- Traefik Dashboard: 使用 File Provider 定义路由
+- 其他服务: 使用 Container Labels，配置与服务绑定，易于管理
+- 共享中间件: 定义在 File Provider，通过 `@file` 后缀引用
+- Label 特殊字符处理: 见 [AGENTS.md 注意事项](../AGENTS.md#注意事项)
+
+## API 和 Dashboard 配置
+
+根据[官方文档](https://doc.traefik.io/traefik/operations/dashboard/)：
+
+- `[api]` 启用 API，`dashboard` 默认为 `true`
+- `insecure = true` 会自动创建 `traefik` entrypoint 监听 `:8080`
+- 生产环境不用 `insecure`，通过 file provider 路由到 `api@internal`
+
+```toml
+# traefik.toml
+[api]  # dashboard 默认启用
+
+# middlewares.toml
+[http.routers.traefik-dashboard]
+  rule = "Host(`traefik.{{domain}}`)"
+  entrypoints = ["https"]
+  service = "api@internal"
+  middlewares = ["gzip"]
+  [http.routers.traefik-dashboard.tls]
+```
+
+## 共享中间件
+
+定义在 `traefik/middlewares.toml`：
+
+```toml
+[http.middlewares]
+  # Compression (zstd preferred, gzip fallback)
+  [http.middlewares.gzip.compress]
+    encodings = ["zstd", "gzip"]
+
+  [http.middlewares.redir-https.redirectScheme]
+    scheme = "https"
+    permanent = false
+```
+
+## 服务 Labels 模板
+
+> 完整的 Quadlet 服务模板（包含 Labels）详见 [AGENTS.md](../AGENTS.md#单容器服务模板)

@@ -1,0 +1,40 @@
+[Unit]
+Description=Dozzle - Container Log Viewer
+After=traefik.service
+Wants=traefik.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=unless-stopped
+
+[Container]
+Image=docker.io/amir20/dozzle:latest
+Network=traefik.network
+
+# Podman socket for container discovery
+Volume=%t/podman/podman.sock:/var/run/docker.sock:ro
+
+# Enable container actions (start/stop/restart)
+Environment=DOZZLE_ENABLE_ACTIONS=true
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.dozzle-http.entrypoints=http
+Label=traefik.http.routers.dozzle-http.middlewares=redir-https@file
+Label=traefik.http.routers.dozzle-http.rule=Host(`dozzle.{{domain}}`)
+Label=traefik.http.routers.dozzle-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.dozzle-https.entrypoints=https
+Label=traefik.http.routers.dozzle-https.tls=true
+Label=traefik.http.routers.dozzle-https.middlewares=gzip@file
+Label=traefik.http.routers.dozzle-https.rule=Host(`dozzle.{{domain}}`)
+Label=traefik.http.services.dozzle.loadbalancer.server.port=8080
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,46 @@
+[Unit]
+Description=Omnivore Web Frontend
+PartOf=omnivore.target
+Requires=omnivore-api.service
+After=omnivore-api.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=ghcr.io/omnivore-app/sh-web:latest
+Network=omnivore.network
+Network=traefik.network
+
+# Web Configuration - adjust for your domain
+Environment=APP_ENV=prod
+Environment=BASE_URL=https://omnivore.{{domain}}
+Environment=SERVER_BASE_URL=https://omnivore-api.{{domain}}
+Environment=HIGHLIGHTS_BASE_URL=https://omnivore.{{domain}}
+Environment=NEXT_PUBLIC_APP_ENV=prod
+Environment=NEXT_PUBLIC_BASE_URL=https://omnivore.{{domain}}
+Environment=NEXT_PUBLIC_SERVER_BASE_URL=https://omnivore-api.{{domain}}
+Environment=NEXT_PUBLIC_HIGHLIGHTS_BASE_URL=https://omnivore.{{domain}}
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.omnivore-http.entrypoints=http
+Label=traefik.http.routers.omnivore-http.rule=Host(`omnivore.{{domain}}`)
+Label=traefik.http.routers.omnivore-http.middlewares=redir-https@file
+Label=traefik.http.routers.omnivore-http.service=noop@internal
+
+# HTTPS route
+Label=traefik.http.routers.omnivore-https.entrypoints=https
+Label=traefik.http.routers.omnivore-https.rule=Host(`omnivore.{{domain}}`)
+Label=traefik.http.routers.omnivore-https.tls=true
+Label=traefik.http.routers.omnivore-https.middlewares=gzip@file
+Label=traefik.http.services.omnivore.loadbalancer.server.port=8080
+
+[Install]
+WantedBy=omnivore.target

@@ -1,0 +1,18 @@
+[Unit]
+Description=Plane Redis/Valkey Cache
+PartOf=plane.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/valkey/valkey:7.2.11-alpine
+Network=plane.network
+NetworkAlias=plane-redis
+Volume=plane-redis-data.volume:/data
+
+[Install]
+WantedBy=plane.target

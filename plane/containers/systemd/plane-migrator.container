@@ -1,0 +1,50 @@
+[Unit]
+Description=Plane Database Migrator
+PartOf=plane.target
+Requires=plane-db.service plane-redis.service
+After=plane-db.service plane-redis.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+[Container]
+Image=artifacts.plane.so/makeplane/plane-backend:stable
+
+Secret=plane-postgres-password,type=env,target=POSTGRES_PASSWORD
+Secret=plane-secret-key,type=env,target=SECRET_KEY
+Secret=plane-rabbitmq-password,type=env,target=RABBITMQ_DEFAULT_PASS
+Secret=plane-minio-user,type=env,target=AWS_ACCESS_KEY_ID
+Secret=plane-minio-password,type=env,target=AWS_SECRET_ACCESS_KEY
+
+Network=plane.network
+
+Exec=./bin/docker-entrypoint-migrator.sh
+
+Environment=PGHOST=plane-db
+Environment=PGDATABASE=plane
+Environment=POSTGRES_USER=plane
+Environment=POSTGRES_DB=plane
+Environment=POSTGRES_PORT=5432
+
+# Redis
+Environment=REDIS_HOST=plane-redis
+Environment=REDIS_PORT=6379
+Environment=REDIS_URL=redis://plane-redis:6379/
+
+Environment=RABBITMQ_HOST=plane-mq
+Environment=RABBITMQ_PORT=5672
+Environment=RABBITMQ_DEFAULT_USER=plane
+Environment=RABBITMQ_DEFAULT_VHOST=plane
+Environment=RABBITMQ_VHOST=plane
+
+# MinIO/S3
+Environment=USE_MINIO=1
+Environment=AWS_S3_ENDPOINT_URL=http://plane-minio:9000
+Environment=AWS_S3_BUCKET_NAME=uploads
+
+[Install]
+WantedBy=plane.target

@@ -1,0 +1,10 @@
+# https://github.com/gitleaks/gitleaks
+
+title = "quadlet-homelab gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SOPS encrypted files"
+paths = ['''\.enc$''']

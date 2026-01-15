@@ -1,0 +1,28 @@
+[Unit]
+Description=Plane RabbitMQ Message Queue
+PartOf=plane.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/rabbitmq:3.13.6-management-alpine
+
+Secret=plane-rabbitmq-password,type=env,target=RABBITMQ_DEFAULT_PASS
+Network=plane.network
+NetworkAlias=plane-mq
+Volume=plane-mq-data.volume:/var/lib/rabbitmq
+
+Environment=RABBITMQ_DEFAULT_USER=plane
+Environment=RABBITMQ_DEFAULT_VHOST=plane
+
+HealthCmd=rabbitmq-diagnostics -q ping
+HealthInterval=5s
+HealthTimeout=30s
+HealthRetries=5
+
+[Install]
+WantedBy=plane.target

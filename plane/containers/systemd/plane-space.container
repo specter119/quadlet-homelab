@@ -1,0 +1,18 @@
+[Unit]
+Description=Plane Space (Public Sharing)
+PartOf=plane.target
+After=plane-api.service plane-worker.service plane-web.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=artifacts.plane.so/makeplane/plane-space:stable
+Network=plane.network
+NetworkAlias=space
+
+[Install]
+WantedBy=plane.target

@@ -1,0 +1,34 @@
+[Unit]
+Description=Omnivore Content Fetch Service
+PartOf=omnivore.target
+Requires=omnivore-api.service omnivore-redis.service
+After=omnivore-api.service omnivore-redis.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=ghcr.io/omnivore-app/sh-content-fetch:latest
+
+Secret=omnivore-minio-user,type=env,target=AWS_ACCESS_KEY_ID
+Secret=omnivore-minio-password,type=env,target=AWS_SECRET_ACCESS_KEY
+
+Network=omnivore.network
+NetworkAlias=content-fetch
+
+Environment=USE_FIREFOX=true
+Environment=VERIFICATION_TOKEN=omnivore_fetch_token
+Environment=REST_BACKEND_ENDPOINT=http://omnivore-api:8080/api
+Environment=REDIS_URL=redis://redis:6379/0
+Environment=SKIP_UPLOAD_ORIGINAL=true
+
+Environment=GCS_USE_LOCAL_HOST=true
+Environment=GCS_UPLOAD_BUCKET=omnivore
+Environment=AWS_REGION=us-east-1
+Environment=AWS_S3_ENDPOINT_URL=http://minio:9000
+
+[Install]
+WantedBy=omnivore.target

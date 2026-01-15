@@ -1,0 +1,30 @@
+[Unit]
+Description=Omnivore Database Migration
+After=omnivore-postgres.service
+Requires=omnivore-postgres.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+[Container]
+Image=ghcr.io/omnivore-app/sh-migrate:latest
+
+Secret=omnivore-postgres-password,type=env,target=POSTGRES_PASSWORD
+Secret=omnivore-postgres-password,type=env,target=PG_PASSWORD
+
+Network=omnivore.network
+
+Exec=/bin/sh ./packages/db/setup.sh
+
+Environment=POSTGRES_USER=postgres
+Environment=PG_HOST=postgres
+Environment=PG_DB=omnivore
+Environment=PG_USER=app_user
+Environment=PG_PORT=5432
+
+[Install]
+WantedBy=omnivore.target

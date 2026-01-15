@@ -1,0 +1,44 @@
+[global]
+checknewversion = false
+sendanonymoususage = false
+
+# API and Dashboard (dashboard enabled by default)
+# insecure = true creates automatic entrypoint on :8080
+# For HTTPS access, use file provider router to api@internal
+[api]
+
+[ping]
+
+[entryPoints.http]
+address = ":80"
+
+[entryPoints.http.forwardedHeaders]
+trustedIPs = ["127.0.0.1/32", "172.0.0.0/8", "10.0.0.0/8"]
+
+[entryPoints.https]
+address = ":443"
+asDefault = true
+
+[entryPoints.https.forwardedHeaders]
+trustedIPs = ["127.0.0.1/32", "172.0.0.0/8", "10.0.0.0/8"]
+
+[entryPoints.https.http3]
+advertisedPort = 443
+
+# Disable default traefik entrypoint (API uses file provider router instead)
+[entryPoints.traefik]
+address = ""
+
+[providers.docker]
+endpoint = "unix:///var/run/docker.sock"
+exposedByDefault = false
+network = "traefik"
+watch = true
+
+[providers.file]
+directory = "/etc/traefik"
+watch = true
+
+[log]
+level = "INFO"
+format = "common"

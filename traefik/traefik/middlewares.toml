@@ -1,0 +1,29 @@
+# Shared Middlewares
+# Referenced by containers using @file suffix, e.g., middlewares=gzip@file
+
+[http.middlewares]
+
+  # Compression (zstd preferred, gzip fallback)
+  [http.middlewares.gzip.compress]
+    encodings = ["zstd", "gzip"]
+
+  # HTTP to HTTPS redirect
+  [http.middlewares.redir-https.redirectScheme]
+    scheme = "https"
+    permanent = false
+
+# Traefik Dashboard Routes (using file provider to avoid Quadlet || truncation)
+[http.routers]
+
+  [http.routers.traefik-dashboard]
+    rule = "Host(`traefik.{{domain}}`)"
+    entrypoints = ["https"]
+    service = "api@internal"
+    middlewares = ["gzip"]
+    [http.routers.traefik-dashboard.tls]
+
+  [http.routers.traefik-http]
+    rule = "Host(`traefik.{{domain}}`)"
+    entrypoints = ["http"]
+    service = "noop@internal"
+    middlewares = ["redir-https"]

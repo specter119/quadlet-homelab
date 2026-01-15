@@ -1,0 +1,37 @@
+[Unit]
+After=http.socket https.socket podman.socket
+Requires=http.socket https.socket podman.socket
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Sockets=http.socket https.socket
+Environment=TZ=Asia/Shanghai
+
+[Container]
+NetworkAlias=traefik.{{domain}}
+NoNewPrivileges=true
+ReadOnly=true
+Image=docker.io/library/traefik
+Network=traefik.network
+
+Volume=/etc/localtime:/etc/localtime:ro
+Volume=%t/podman/podman.sock:/var/run/docker.sock:ro
+Volume=%E/traefik/:/etc/traefik/:ro
+Volume=%S/traefik/ssl/:/data/ssl/:Z
+Notify=true
+SecurityLabelDisable=true
+
+# Block telemetry
+AddHost=update.traefik.io:127.0.0.1
+AddHost=collect.traefik.io:127.0.0.1
+AddHost=stats.g.doubleclick.net:127.0.0.1
+AddHost=traefik.{{domain}}:127.0.0.1
+
+# Traefik labels for docker provider discovery
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+[Install]
+WantedBy=default.target

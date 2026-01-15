@@ -1,0 +1,25 @@
+[Unit]
+Description=Langfuse Redis Cache
+PartOf=langfuse.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/redis:7
+Network=langfuse.network
+NetworkAlias=redis
+Secret=langfuse-redis-password,type=env,target=REDIS_PASSWORD
+
+Exec=sh -c 'redis-server --requirepass "$REDIS_PASSWORD" --maxmemory-policy noeviction'
+
+HealthCmd=redis-cli ping
+HealthInterval=3s
+HealthTimeout=10s
+HealthRetries=10
+
+[Install]
+WantedBy=langfuse.target

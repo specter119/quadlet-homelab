@@ -1,0 +1,93 @@
+[Unit]
+Description=Langfuse Web Application
+PartOf=langfuse.target
+Requires=langfuse-postgres.service langfuse-redis.service langfuse-clickhouse.service langfuse-minio.service
+After=langfuse-postgres.service langfuse-redis.service langfuse-clickhouse.service langfuse-minio.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/langfuse/langfuse:3
+
+Secret=langfuse-database-url,type=env,target=DATABASE_URL
+Secret=langfuse-nextauth-secret,type=env,target=NEXTAUTH_SECRET
+Secret=langfuse-salt,type=env,target=SALT
+Secret=langfuse-encryption-key,type=env,target=ENCRYPTION_KEY
+Secret=langfuse-redis-password,type=env,target=REDIS_AUTH
+Secret=langfuse-clickhouse-password,type=env,target=CLICKHOUSE_PASSWORD
+Secret=langfuse-minio-user,type=env,target=LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
+Secret=langfuse-minio-password,type=env,target=LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
+Secret=langfuse-minio-user,type=env,target=LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID
+Secret=langfuse-minio-password,type=env,target=LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY
+Secret=langfuse-minio-user,type=env,target=LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID
+Secret=langfuse-minio-password,type=env,target=LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY
+Pull=newer
+Network=langfuse.network
+Network=traefik.network
+
+# Next.js binding - required for multi-network access
+Environment=HOSTNAME=0.0.0.0
+
+# Auth
+Environment=NEXTAUTH_URL=https://langfuse.{{domain}}
+
+# Features
+Environment=TELEMETRY_ENABLED=true
+Environment=LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+
+# ClickHouse
+Environment=CLICKHOUSE_MIGRATION_URL=clickhouse://clickhouse:9000
+Environment=CLICKHOUSE_URL=http://clickhouse:8123
+Environment=CLICKHOUSE_USER=clickhouse
+Environment=CLICKHOUSE_CLUSTER_ENABLED=false
+
+# Redis
+Environment=REDIS_HOST=redis
+Environment=REDIS_PORT=6379
+
+# S3/MinIO Event Upload
+Environment=LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+Environment=LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
+Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+Environment=LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+Environment=LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
+
+# S3/MinIO Media Upload
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_REGION=auto
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://localhost:9090
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
+
+# S3/MinIO Batch Export
+Environment=LANGFUSE_S3_BATCH_EXPORT_ENABLED=false
+Environment=LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse
+Environment=LANGFUSE_S3_BATCH_EXPORT_PREFIX=exports/
+Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=auto
+Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://minio:9000
+Environment=LANGFUSE_S3_BATCH_EXPORT_EXTERNAL_ENDPOINT=http://localhost:9090
+Environment=LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.langfuse-http.entrypoints=http
+Label=traefik.http.routers.langfuse-http.rule=Host(`langfuse.{{domain}}`)
+Label=traefik.http.routers.langfuse-http.middlewares=redir-https@file
+Label=traefik.http.routers.langfuse-http.service=noop@internal
+
+# HTTPS route
+Label=traefik.http.routers.langfuse-https.entrypoints=https
+Label=traefik.http.routers.langfuse-https.rule=Host(`langfuse.{{domain}}`)
+Label=traefik.http.routers.langfuse-https.tls=true
+Label=traefik.http.routers.langfuse-https.middlewares=gzip@file
+Label=traefik.http.services.langfuse.loadbalancer.server.port=3000
+
+[Install]
+WantedBy=langfuse.target

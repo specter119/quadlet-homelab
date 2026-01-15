@@ -1,0 +1,23 @@
+[Unit]
+Description=Omnivore Redis Cache
+PartOf=omnivore.target
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/redis:7.2.4
+Network=omnivore.network
+NetworkAlias=redis
+Volume=omnivore-redis-data.volume:/data
+
+HealthCmd=redis-cli --raw incr ping
+HealthInterval=5s
+HealthTimeout=3s
+HealthRetries=10
+
+[Install]
+WantedBy=omnivore.target

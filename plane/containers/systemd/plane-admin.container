@@ -1,0 +1,18 @@
+[Unit]
+Description=Plane Admin Dashboard
+PartOf=plane.target
+After=plane-api.service plane-web.service
+
+[Quadlet]
+DefaultDependencies=false
+
+[Service]
+Restart=always
+
+[Container]
+Image=artifacts.plane.so/makeplane/plane-admin:stable
+Network=plane.network
+NetworkAlias=admin
+
+[Install]
+WantedBy=plane.target
