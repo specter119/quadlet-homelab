@@ -4,9 +4,11 @@ PartOf=omnivore.target
 Requires=omnivore-api.service
 After=omnivore-api.service
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Restart=always
 

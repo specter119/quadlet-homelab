@@ -3,9 +3,11 @@ Description=Omnivore Database Migration
 After=omnivore-postgres.service
 Requires=omnivore-postgres.service
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Type=oneshot
 RemainAfterExit=yes

@@ -2,9 +2,11 @@
 After=http.socket https.socket podman.socket
 Requires=http.socket https.socket podman.socket
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Sockets=http.socket https.socket
 Environment=TZ=Asia/Shanghai

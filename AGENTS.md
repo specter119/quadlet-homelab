@@ -82,10 +82,12 @@ Description=<Service Description>
 After=traefik.service
 Wants=traefik.service
 
-# 禁用网络依赖，避免 WSL 等环境下启动超时
+# WSL 环境：禁用网络依赖，避免启动超时
+\{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+\{{/if}}
 [Service]
 Restart=unless-stopped
 
@@ -118,7 +120,7 @@ WantedBy=default.target
 
 - `<service>`: 服务名，如 `dozzle`, `silverbullet`
 - `<port>`: 容器内部端口，如 `8080`, `3000`
-- `DefaultDependencies=false`: 禁用 `network-online.target` 依赖，避免 WSL/rootless 环境启动超时
+- `DefaultDependencies=false`: 仅在 WSL 环境下添加，禁用 `network-online.target` 依赖避免启动超时
 - `redir-https@file`, `gzip@file`: 引用 `middlewares.toml` 中定义的共享中间件
 - `noop@internal`: Traefik 内置空服务，用于重定向场景
 

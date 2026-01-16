@@ -3,9 +3,11 @@ Description=Plane Admin Dashboard
 PartOf=plane.target
 After=plane-api.service plane-web.service
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Restart=always
 

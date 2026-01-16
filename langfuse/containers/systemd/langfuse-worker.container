@@ -4,9 +4,11 @@ PartOf=langfuse.target
 Requires=langfuse-postgres.service langfuse-redis.service langfuse-clickhouse.service langfuse-minio.service
 After=langfuse-postgres.service langfuse-redis.service langfuse-clickhouse.service langfuse-minio.service
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Restart=always
 

@@ -2,9 +2,11 @@
 Description=Omnivore PostgreSQL with PGVector
 PartOf=omnivore.target
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Restart=always
 

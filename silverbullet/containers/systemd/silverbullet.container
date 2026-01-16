@@ -3,9 +3,11 @@ Description=SilverBullet - Personal Knowledge Management
 After=traefik.service
 Wants=traefik.service
 
+{{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
 
+{{/if}}
 [Service]
 Environment=TZ=Asia/Shanghai
 Environment=PUID=1000
