@@ -4,22 +4,26 @@
 
 ## 冷启动配置
 
-### WSL 低端口绑定
+### 低端口绑定
 
-Rootless Podman 默认无法绑定 80/443 端口。WSL 环境下需配置 sysctl 允许非特权用户绑定低端口：
+Rootless Podman 默认无法绑定 80/443 端口。配置 sysctl 允许非特权用户绑定低端口：
 
 ```bash
 sudo tee /etc/sysctl.d/99-unprivileged-ports.conf << 'EOF'
 net.ipv4.ip_unprivileged_port_start=80
 EOF
+
+sudo sysctl --system  # 立即生效
 ```
 
-重启 WSL 后生效（`wsl --shutdown`）。验证：
+验证：
 
 ```bash
 sysctl net.ipv4.ip_unprivileged_port_start
 # 输出应为 80
 ```
+
+> **WSL 用户**：也可通过 `wsl --shutdown` 重启 WSL 使配置生效。
 
 ### SSL 证书初始化
 
@@ -30,7 +34,7 @@ sysctl net.ipv4.ip_unprivileged_port_start
 mkdir -p ~/.local/state/traefik/ssl
 
 # 设置域名（与 .dotter/local.toml 中的 domain 一致）
-DOMAIN=worklab.com  # 或 homelab.com
+DOMAIN=homelab.com  # 或 worklab.com
 
 # 生成泛域名证书（有效期 10 年）
 podman run --rm \
@@ -54,9 +58,38 @@ certFile = "/data/ssl/{{domain}}.pem.crt"
 keyFile = "/data/ssl/{{domain}}.pem.key"
 ```
 
-### 临时域名配置
+### 域名解析配置
 
-开发环境在 Windows `C:\Windows\System32\drivers\etc\hosts` 添加（WSL IP 通过 `ip addr show eth0` 获取）：
+#### Linux：NetworkManager + dnsmasq
+
+配置一次后自动解析所有子域名，新增服务无需手动添加条目。
+
+1. 启用 dnsmasq：
+
+```bash
+sudo tee /etc/NetworkManager/conf.d/dns.conf << 'EOF'
+[main]
+dns=dnsmasq
+EOF
+```
+
+1. 添加泛域名解析（以 `homelab.com` 为例）：
+
+```bash
+sudo tee /etc/NetworkManager/dnsmasq.d/homelab.conf << 'EOF'
+address=/.homelab.com/127.0.0.1
+EOF
+```
+
+1. 重启 NetworkManager：
+
+```bash
+sudo systemctl restart NetworkManager
+```
+
+#### WSL：Windows hosts
+
+在 Windows `C:\Windows\System32\drivers\etc\hosts` 添加（IP 通过 `ip addr show eth0` 获取）：
 
 ```
 <WSL_IP> traefik.<your-domain>

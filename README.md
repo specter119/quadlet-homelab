@@ -4,19 +4,22 @@
 
 ## 服务列表
 
-### 基础服务
+### 基础设施
 
-| 服务 | 说明 |
-|------|------|
-| Traefik | 反向代理，统一域名访问，自动 HTTPS |
-| Dozzle | 容器日志查看器 |
+| 服务 | 说明 | 文档 |
+|------|------|------|
+| Tailscale | 子网路由器，远程访问 homelab | [docs/tailscale.md](docs/tailscale.md) |
+| Traefik | 反向代理，统一域名访问，自动 HTTPS | [docs/traefik.md](docs/traefik.md) |
+| Dozzle | 容器日志查看器 | - |
 
 ### 业务服务
 
-- SilverBullet - 个人知识管理
-- Langfuse - LLM 应用可观测性
-- Omnivore - Read-it-later 阅读服务
-- Plane - 项目管理
+| 服务 | 说明 | 文档 |
+|------|------|------|
+| SilverBullet | 个人知识管理 | - |
+| Langfuse | LLM 应用可观测性 | - |
+| Omnivore | Read-it-later 阅读服务 | [docs/omnivore.md](docs/omnivore.md) |
+| Plane | 项目管理 | - |
 
 ## 快速开始
 

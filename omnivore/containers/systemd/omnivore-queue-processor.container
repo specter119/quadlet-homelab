@@ -15,8 +15,9 @@ Restart=always
 [Container]
 Image=ghcr.io/omnivore-app/sh-queue-processor:latest
 
-Secret=omnivore-postgres-password,type=env,target=PG_PASSWORD
+Secret=omnivore-app-password,type=env,target=PG_PASSWORD
 Secret=omnivore-jwt-secret,type=env,target=JWT_SECRET
+Secret=omnivore-sso-jwt-secret,type=env,target=SSO_JWT_SECRET
 Secret=omnivore-minio-user,type=env,target=AWS_ACCESS_KEY_ID
 Secret=omnivore-minio-password,type=env,target=AWS_SECRET_ACCESS_KEY
 

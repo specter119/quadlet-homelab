@@ -3,6 +3,7 @@ set -e
 
 SOURCE_DIR="{{dotter.current_dir}}"
 SECRETS_DIR="$SOURCE_DIR/.dotter/secrets"
+LOCAL_TOML="$SOURCE_DIR/.dotter/local.toml"
 VERBOSE=false
 CREATED=0
 TOTAL=0
@@ -12,6 +13,12 @@ TOTAL=0
 log() { $VERBOSE && echo "$@" || true; }
 
 echo "[pre-deploy] Checking secrets..."
+
+# Parse enabled packages from local.toml
+# Format: packages = ['traefik', 'silverbullet', 'dozzle', 'omnivore']
+ENABLED_PACKAGES=$(grep -E "^packages\s*=" "$LOCAL_TOML" | \
+    sed "s/.*\[//;s/\].*//;s/'//g;s/\"//g;s/,/ /g;s/  */ /g")
+log "Enabled packages: $ENABLED_PACKAGES"
 
 # Cache existing secrets once at startup
 declare -A EXISTING_SECRETS
@@ -70,8 +77,9 @@ process_conf() {
     done < "$conf"
 }
 
-{{#each dotter.packages}}
-process_conf "$SECRETS_DIR/{{@key}}.conf"
-{{/each}}
+# Only process secrets for enabled packages
+for pkg in $ENABLED_PACKAGES; do
+    process_conf "$SECRETS_DIR/$pkg.conf"
+done
 
 echo "Secrets: $TOTAL valid ($CREATED newly created)"

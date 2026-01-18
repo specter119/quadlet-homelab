@@ -15,8 +15,11 @@ RemainAfterExit=yes
 [Container]
 Image=ghcr.io/omnivore-app/sh-migrate:latest
 
+# postgres superuser auth
 Secret=omnivore-postgres-password,type=env,target=POSTGRES_PASSWORD
-Secret=omnivore-postgres-password,type=env,target=PG_PASSWORD
+Secret=omnivore-postgres-password,type=env,target=PGPASSWORD
+# app_user password (used in CREATE USER)
+Secret=omnivore-app-password,type=env,target=PG_PASSWORD
 
 Network=omnivore.network
 

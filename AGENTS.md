@@ -8,6 +8,14 @@
 | AGENTS.md | 开发者/AI | 新建服务流程、Quadlet 规范、模板、Secrets 管理 |
 | docs/*.md | 开发者/AI | 特定服务的详细配置（如 Traefik SSL、路由规则） |
 
+### docs/*.md 维护规范
+
+修改服务文档前，**必须先查阅官方文档**验证配置是否过时：
+
+1. 检查文档末尾「参考」章节的官方链接
+2. 对比本地配置与官方最新推荐
+3. 移除已废弃的配置方式，只保留当前推荐做法
+
 ## 新建服务检查清单
 
 每次新建微服务时，必须完成以下步骤：
@@ -30,7 +38,7 @@
 3. **更新 `.dotter/local.toml`** - 启用新服务
 
    ```toml
-   packages = ["traefik", "dozzle", "silverbullet", "langfuse",  "<service>"]
+   packages = ["traefik", "dozzle", "silverbullet",  "<service>"]
    ```
 
 4. **更新 `README.md`** - 服务列表添加新服务
@@ -93,6 +101,7 @@ Restart=unless-stopped
 
 [Container]
 Image=<image>
+# Pull=newer
 Network=traefik.network
 
 # Traefik labels - 启用发现
@@ -123,6 +132,10 @@ WantedBy=default.target
 - `DefaultDependencies=false`: 仅在 WSL 环境下添加，禁用 `network-online.target` 依赖避免启动超时
 - `redir-https@file`, `gzip@file`: 引用 `middlewares.toml` 中定义的共享中间件
 - `noop@internal`: Traefik 内置空服务，用于重定向场景
+
+**可选配置**：
+
+- `Pull=newer`: 启动时检查镜像更新，有新版本自动拉取（适合追 latest 的服务）
 
 ## 多容器服务栈
 

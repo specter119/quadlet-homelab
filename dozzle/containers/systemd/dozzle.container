@@ -13,6 +13,7 @@ Restart=unless-stopped
 
 [Container]
 Image=docker.io/amir20/dozzle:latest
+Pull=newer
 Network=traefik.network
 
 # Podman socket for container discovery
