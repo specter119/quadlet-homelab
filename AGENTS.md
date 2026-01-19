@@ -2,13 +2,13 @@
 
 ## 文档分工
 
-| 文档 | 读者 | 内容 |
-|------|------|------|
-| README.md | 用户 | 项目简介、服务列表、冷启动、常用命令 |
-| AGENTS.md | 开发者/AI | 新建服务流程、Quadlet 规范、模板、Secrets 管理 |
-| docs/*.md | 开发者/AI | 特定服务的详细配置（如 Traefik SSL、路由规则） |
+| 文档       | 读者      | 内容                                           |
+| ---------- | --------- | ---------------------------------------------- |
+| README.md  | 用户      | 项目简介、服务列表、冷启动、常用命令           |
+| AGENTS.md  | 开发者/AI | 新建服务流程、Quadlet 规范、模板、Secrets 管理 |
+| docs/\*.md | 开发者/AI | 特定服务的详细配置（如 Traefik SSL、路由规则） |
 
-### docs/*.md 维护规范
+### docs/\*.md 维护规范
 
 修改服务文档前，**必须先查阅官方文档**验证配置是否过时：
 
@@ -51,23 +51,23 @@
 
 ### 文件类型
 
-| 扩展名 | 用途 | 部署位置 |
-|--------|------|----------|
-| `.container` | 容器定义 | `~/.config/containers/systemd/` |
-| `.volume` | 命名卷定义 | `~/.config/containers/systemd/` |
-| `.network` | 网络定义 | `~/.config/containers/systemd/` |
-| `.target` | 服务组 | `~/.config/systemd/user/` |
+| 扩展名       | 用途       | 部署位置                        |
+| ------------ | ---------- | ------------------------------- |
+| `.container` | 容器定义   | `~/.config/containers/systemd/` |
+| `.volume`    | 命名卷定义 | `~/.config/containers/systemd/` |
+| `.network`   | 网络定义   | `~/.config/containers/systemd/` |
+| `.target`    | 服务组     | `~/.config/systemd/user/`       |
 
 ### 命名规范
 
 **保持简洁，让 Quadlet 自动命名**。Quadlet 生成的资源会自动加 `systemd-` 前缀，便于区分。
 
-| 资源类型 | 是否指定名称 | 说明 |
-|----------|-------------|------|
-| `ContainerName` | ❌ 不指定 | 自动生成 `systemd-<filename>` |
-| `VolumeName` | ❌ 不指定 | 自动生成 `systemd-<filename>` |
-| `NetworkName` | ❌ 不指定 | 自动生成 `systemd-<filename>` |
-| `NetworkAlias` | ✅ 按需指定 | 服务栈内被其他容器访问时才需要 |
+| 资源类型        | 是否指定名称 | 说明                           |
+| --------------- | ------------ | ------------------------------ |
+| `ContainerName` | ❌ 不指定    | 自动生成 `systemd-<filename>`  |
+| `VolumeName`    | ❌ 不指定    | 自动生成 `systemd-<filename>`  |
+| `NetworkName`   | ❌ 不指定    | 自动生成 `systemd-<filename>`  |
+| `NetworkAlias`  | ✅ 按需指定  | 服务栈内被其他容器访问时才需要 |
 
 **例外**：`NetworkAlias` 用于容器间通信的 DNS 别名，只有需要被访问的容器才指定（如数据库、Redis），主动访问其他服务的容器（如 Web、Worker）无需设置。
 
@@ -137,7 +137,7 @@ WantedBy=default.target
 
 - `<service>`: 服务名，如 `dozzle`, `silverbullet`
 - `<port>`: 容器内部端口，如 `8080`, `3000`
-- `DefaultDependencies=false`: 仅在 WSL 环境下添加，禁用 `network-online.target` 依赖避免启动超时
+- `DefaultDependencies=false`: 仅在 WSL 环境下添加，禁用 Quadlet 默认的网络依赖避免启动超时
 - `redir-https@file`, `gzip@file`: 引用 `middlewares.toml` 中定义的共享中间件
 - `noop@internal`: Traefik 内置空服务，用于重定向场景
 
@@ -210,13 +210,18 @@ NetworkAlias=postgres
 #### secrets.conf 格式
 
 ```
+# <Service> Secrets
+# Reference: <官方配置文件链接>
+#   - <官方 docker-compose.yml 链接>
+#   - <其他参考链接，如 .env.example 等, 允许多个，继续向下扩展列表。>
+
 <name>:<type>:<param>
 ```
 
-| type | 说明 | param |
-|------|------|-------|
-| `hex` | 随机 hex 字符串 | 字节数 |
-| `fixed` | 固定值（用户名等） | 值 |
+| type       | 说明                 | param                     |
+| ---------- | -------------------- | ------------------------- |
+| `hex`      | 随机 hex 字符串      | 字节数                    |
+| `fixed`    | 固定值（用户名等）   | 值                        |
 | `computed` | 依赖其他 secret 构造 | 模板（`${other-secret}`） |
 
 #### Container 引用
@@ -252,11 +257,11 @@ Environment=POSTGRES_DB=postgres
 
 **检查清单**：
 
-| DATABASE_URL 参数 | 对应容器配置 |
-|-------------------|-------------|
-| 用户名 (`<service>:`) | `POSTGRES_USER=<service>` |
-| 数据库名 (`/<service>`) | `POSTGRES_DB=<service>` |
-| 主机名 (`@postgres:`) | `NetworkAlias=postgres` |
+| DATABASE_URL 参数       | 对应容器配置              |
+| ----------------------- | ------------------------- |
+| 用户名 (`<service>:`)   | `POSTGRES_USER=<service>` |
+| 数据库名 (`/<service>`) | `POSTGRES_DB=<service>`   |
+| 主机名 (`@postgres:`)   | `NetworkAlias=postgres`   |
 
 ### Hook 脚本注意事项
 
@@ -273,8 +278,8 @@ podman secret ls --format '\{{.Name}}'
 
 ## 参考命令
 
-| 主题 | 命令 |
-|------|------|
-| Quadlet 参数 | `man podman-systemd.unit` |
-| systemd 单元（specifiers、依赖等） | `man systemd.unit` |
-| Podman Secret | `man podman-secret` |
+| 主题                               | 命令                      |
+| ---------------------------------- | ------------------------- |
+| Quadlet 参数                       | `man podman-systemd.unit` |
+| systemd 单元（specifiers、依赖等） | `man systemd.unit`        |
+| Podman Secret                      | `man podman-secret`       |

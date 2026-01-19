@@ -36,6 +36,7 @@ Environment=GCS_USE_LOCAL_HOST=true
 Environment=GCS_UPLOAD_BUCKET=omnivore
 Environment=AWS_REGION=us-east-1
 Environment=AWS_S3_ENDPOINT_URL=http://minio:9000
+Environment=LOCAL_MINIO_URL=http://minio:9000
 
 Environment=CONTENT_FETCH_URL=http://content-fetch:8080/?token=omnivore_fetch_token
 Environment=EXPORT_QUEUE_NAME=omnivore-backend-queue
