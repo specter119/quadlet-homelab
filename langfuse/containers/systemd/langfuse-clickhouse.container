@@ -16,7 +16,6 @@ Network=langfuse.network
 NetworkAlias=clickhouse
 User=101:101
 Volume=langfuse-clickhouse-data.volume:/var/lib/clickhouse
-Volume=langfuse-clickhouse-logs.volume:/var/log/clickhouse-server
 
 Environment=CLICKHOUSE_DB=default
 Environment=CLICKHOUSE_USER=clickhouse

@@ -9,6 +9,9 @@ DefaultDependencies=false
 
 {{/if}}
 [Service]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
 Restart=unless-stopped
 
 [Container]

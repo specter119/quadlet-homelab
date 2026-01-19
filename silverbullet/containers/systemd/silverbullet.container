@@ -9,7 +9,9 @@ DefaultDependencies=false
 
 {{/if}}
 [Service]
-Environment=TZ=Asia/Shanghai
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
 Environment=PUID=1000
 Restart=unless-stopped
 

@@ -5,6 +5,16 @@ traefik = '~/.config'
 target = '~/.config/traefik'
 type = 'template'
 
+[postgres.files]
+postgres = '~/.config'
+
+[garage.files]
+garage = '~/.config'
+
+[garage.files.'garage/garage']
+target = '~/.config/garage'
+type = 'template'
+
 [silverbullet.files]
 silverbullet = '~/.config'
 

@@ -1,8 +1,8 @@
 [Unit]
 Description=Langfuse Web Application
 PartOf=langfuse.target
-Requires=langfuse-postgres.service langfuse-redis.service langfuse-clickhouse.service langfuse-minio.service
-After=langfuse-postgres.service langfuse-redis.service langfuse-clickhouse.service langfuse-minio.service
+Requires=postgres.service garage.service langfuse-redis.service langfuse-clickhouse.service
+After=postgres.service garage.service langfuse-redis.service langfuse-clickhouse.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -21,12 +21,12 @@ Secret=langfuse-salt,type=env,target=SALT
 Secret=langfuse-encryption-key,type=env,target=ENCRYPTION_KEY
 Secret=langfuse-redis-password,type=env,target=REDIS_AUTH
 Secret=langfuse-clickhouse-password,type=env,target=CLICKHOUSE_PASSWORD
-Secret=langfuse-minio-user,type=env,target=LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
-Secret=langfuse-minio-password,type=env,target=LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
-Secret=langfuse-minio-user,type=env,target=LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID
-Secret=langfuse-minio-password,type=env,target=LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY
-Secret=langfuse-minio-user,type=env,target=LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID
-Secret=langfuse-minio-password,type=env,target=LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY
+Secret=langfuse-s3-access-key,type=env,target=LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
+Secret=langfuse-s3-secret-key,type=env,target=LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
+Secret=langfuse-s3-access-key,type=env,target=LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID
+Secret=langfuse-s3-secret-key,type=env,target=LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY
+Secret=langfuse-s3-access-key,type=env,target=LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID
+Secret=langfuse-s3-secret-key,type=env,target=LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY
 Pull=newer
 Network=langfuse.network
 Network=traefik.network
@@ -51,27 +51,26 @@ Environment=CLICKHOUSE_CLUSTER_ENABLED=false
 Environment=REDIS_HOST=redis
 Environment=REDIS_PORT=6379
 
-# S3/MinIO Event Upload
+# S3/Garage Event Upload
 Environment=LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
-Environment=LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
-Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://minio:9000
+Environment=LANGFUSE_S3_EVENT_UPLOAD_REGION=garage
+Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://garage.{{domain}}:3900
 Environment=LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
 Environment=LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
 
-# S3/MinIO Media Upload
+# S3/Garage Media Upload
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
-Environment=LANGFUSE_S3_MEDIA_UPLOAD_REGION=auto
-Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://localhost:9090
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_REGION=garage
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://garage.{{domain}}:3900
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
 
-# S3/MinIO Batch Export
+# S3/Garage Batch Export
 Environment=LANGFUSE_S3_BATCH_EXPORT_ENABLED=false
 Environment=LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse
 Environment=LANGFUSE_S3_BATCH_EXPORT_PREFIX=exports/
-Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=auto
-Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://minio:9000
-Environment=LANGFUSE_S3_BATCH_EXPORT_EXTERNAL_ENDPOINT=http://localhost:9090
+Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=garage
+Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://garage.{{domain}}:3900
 Environment=LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
 
 # Traefik labels

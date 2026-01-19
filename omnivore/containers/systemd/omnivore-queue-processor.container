@@ -1,8 +1,8 @@
 [Unit]
 Description=Omnivore Queue Processor
 PartOf=omnivore.target
-Requires=omnivore-api.service omnivore-redis.service
-After=omnivore-api.service omnivore-redis.service
+Requires=omnivore-api.service omnivore-redis.service garage.service
+After=omnivore-api.service omnivore-redis.service garage.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -18,8 +18,8 @@ Image=ghcr.io/omnivore-app/sh-queue-processor:latest
 Secret=omnivore-app-password,type=env,target=PG_PASSWORD
 Secret=omnivore-jwt-secret,type=env,target=JWT_SECRET
 Secret=omnivore-sso-jwt-secret,type=env,target=SSO_JWT_SECRET
-Secret=omnivore-minio-user,type=env,target=AWS_ACCESS_KEY_ID
-Secret=omnivore-minio-password,type=env,target=AWS_SECRET_ACCESS_KEY
+Secret=omnivore-s3-access-key,type=env,target=AWS_ACCESS_KEY_ID
+Secret=omnivore-s3-secret-key,type=env,target=AWS_SECRET_ACCESS_KEY
 
 Network=omnivore.network
 
@@ -34,9 +34,9 @@ Environment=REDIS_URL=redis://redis:6379/0
 
 Environment=GCS_USE_LOCAL_HOST=true
 Environment=GCS_UPLOAD_BUCKET=omnivore
-Environment=AWS_REGION=us-east-1
-Environment=AWS_S3_ENDPOINT_URL=http://minio:9000
-Environment=LOCAL_MINIO_URL=http://minio:9000
+Environment=AWS_REGION=garage
+Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
+Environment=LOCAL_MINIO_URL=http://garage:3900
 
 Environment=CONTENT_FETCH_URL=http://content-fetch:8080/?token=omnivore_fetch_token
 Environment=EXPORT_QUEUE_NAME=omnivore-backend-queue

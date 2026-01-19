@@ -1,0 +1,34 @@
+[Unit]
+Description=Shared S3-compatible Storage (Garage)
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+ExecStartPre=/bin/sh -c 'if [ ! -f %h/.local/share/containers/storage/volumes/systemd-garage-meta/_data/.rpc_secret ]; then umask 077; podman secret inspect garage-rpc-secret --format "\{{.SecretData}}" 2>/dev/null | base64 -d > %h/.local/share/containers/storage/volumes/systemd-garage-meta/_data/.rpc_secret; fi'
+Restart=always
+
+[Container]
+Image=docker.io/dxflrs/garage:v2.1.0
+Network=traefik.network
+{{#each business_networks}}
+Network={{this}}.network
+{{/each}}
+NetworkAlias=garage
+
+# Traefik TCP (S3 API)
+Label=traefik.tcp.routers.garage.entrypoints=garage
+Label=traefik.tcp.routers.garage.rule=HostSNI(`*`)
+Label=traefik.tcp.services.garage.loadbalancer.server.port=3900
+
+Volume=garage-meta.volume:/var/lib/garage/meta
+Volume=garage-data.volume:/var/lib/garage/data
+Volume=%h/.config/garage/garage.toml:/etc/garage.toml:ro
+
+
+[Install]
+WantedBy=default.target

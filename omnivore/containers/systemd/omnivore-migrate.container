@@ -1,7 +1,7 @@
 [Unit]
 Description=Omnivore Database Migration
-After=omnivore-postgres.service
-Requires=omnivore-postgres.service
+After=postgres.service
+Requires=postgres.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -16,8 +16,8 @@ RemainAfterExit=yes
 Image=ghcr.io/omnivore-app/sh-migrate:latest
 
 # postgres superuser auth
-Secret=omnivore-postgres-password,type=env,target=POSTGRES_PASSWORD
-Secret=omnivore-postgres-password,type=env,target=PGPASSWORD
+Secret=postgres-password,type=env,target=POSTGRES_PASSWORD
+Secret=postgres-password,type=env,target=PGPASSWORD
 # app_user password (used in CREATE USER)
 Secret=omnivore-app-password,type=env,target=PG_PASSWORD
 

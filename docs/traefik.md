@@ -109,9 +109,18 @@ sudo systemctl restart NetworkManager
 ┌─────────────────────────────────────────────────────────────┐
 │                        Traefik                              │
 ├─────────────────────────────────────────────────────────────┤
-│  File Provider (middlewares.toml)                           │
+│  HTTP EntryPoints                                            │
+│  ├── http (:80)   → 重定向到 https                           │
+│  └── https (:443) → 业务服务                                 │
+├─────────────────────────────────────────────────────────────┤
+│  TCP EntryPoints (共享基础设施)                              │
+│  ├── postgres (:5432) → postgres.{{domain}}:5432            │
+│  └── garage (:3900)   → garage.{{domain}}:3900              │
+├─────────────────────────────────────────────────────────────┤
+│  File Provider (middlewares.toml, tcp.toml)                 │
 │  ├── 共享中间件: gzip, redir-https                           │
-│  └── Dashboard 路由 → api@internal                          │
+│  ├── Dashboard 路由 → api@internal                          │
+│  └── TCP 路由: postgres, garage                             │
 ├─────────────────────────────────────────────────────────────┤
 │  Docker Provider (container labels)                         │
 │  ├── dozzle      → dozzle.{{domain}}                        │
@@ -168,3 +177,46 @@ sudo systemctl restart NetworkManager
 ## 服务 Labels 模板
 
 > 完整的 Quadlet 服务模板（包含 Labels）详见 [AGENTS.md](../AGENTS.md#单容器服务模板)
+
+## TCP 路由（共享基础设施）
+
+PostgreSQL 和 Garage 作为共享基础设施，通过 Traefik TCP 路由暴露给各服务访问。
+
+### 配置文件
+
+`traefik/tcp.toml` 定义 TCP 路由：
+
+```toml
+# PostgreSQL
+[tcp.routers.postgres]
+entryPoints = ["postgres"]
+rule = "HostSNI(`*`)"
+service = "postgres"
+
+[tcp.services.postgres.loadBalancer]
+[[tcp.services.postgres.loadBalancer.servers]]
+address = "postgres:5432"
+
+# Garage S3 API
+[tcp.routers.garage]
+entryPoints = ["garage"]
+rule = "HostSNI(`*`)"
+service = "garage"
+
+[tcp.services.garage.loadBalancer]
+[[tcp.services.garage.loadBalancer.servers]]
+address = "garage:3900"
+```
+
+### 服务访问方式
+
+| 服务 | 内部访问（同网络） | 外部访问（跨网络） |
+|------|-------------------|-------------------|
+| PostgreSQL | `postgres:5432` | `postgres.{{domain}}:5432` |
+| Garage S3 | `garage:3900` | `garage.{{domain}}:3900` |
+
+### 设计原因
+
+- **网络隔离**：各服务栈（langfuse, plane, omnivore）保持独立子网
+- **简化配置**：postgres/garage 只需加入 `traefik.network`，无需加入所有服务网络
+- **统一入口**：所有跨网络访问通过 Traefik，便于监控和管理

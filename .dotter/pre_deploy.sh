@@ -2,6 +2,10 @@
 set -e
 
 SOURCE_DIR="{{dotter.current_dir}}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -z "$SOURCE_DIR" || "$SOURCE_DIR" == *"{{dotter.current_dir}}"* ]]; then
+    SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
 SECRETS_DIR="$SOURCE_DIR/.dotter/secrets"
 LOCAL_TOML="$SOURCE_DIR/.dotter/local.toml"
 VERBOSE=false
@@ -16,8 +20,14 @@ echo "[pre-deploy] Checking secrets..."
 
 # Parse enabled packages from local.toml
 # Format: packages = ['traefik', 'silverbullet', 'dozzle', 'omnivore']
-ENABLED_PACKAGES=$(grep -E "^packages\s*=" "$LOCAL_TOML" | \
-    sed "s/.*\[//;s/\].*//;s/'//g;s/\"//g;s/,/ /g;s/  */ /g")
+if [[ -f "$LOCAL_TOML" ]]; then
+    ENABLED_PACKAGES=$(grep -E "^packages\s*=" "$LOCAL_TOML" | \
+        sed "s/.*\[//;s/\].*//;s/'//g;s/\"//g;s/,/ /g;s/  */ /g")
+fi
+if [[ -z "$ENABLED_PACKAGES" ]]; then
+    ENABLED_PACKAGES=$(ls "$SECRETS_DIR"/*.conf 2>/dev/null | xargs -n1 basename 2>/dev/null | sed "s/\.conf$//")
+fi
+ENABLED_PACKAGES=$(echo "$ENABLED_PACKAGES" | tr '\n' ' ' | xargs)
 log "Enabled packages: $ENABLED_PACKAGES"
 
 # Cache existing secrets once at startup
@@ -36,14 +46,18 @@ create_secret() {
         log "  $name: exists"
         return 1
     fi
-    echo -n "$value" | podman secret create "$name" - >/dev/null
+    if ! echo -n "$value" | podman secret create "$name" - >/dev/null 2>&1; then
+        log "  $name: exists"
+        EXISTING_SECRETS["$name"]=1
+        return 1
+    fi
     EXISTING_SECRETS["$name"]=1
     ((CREATED++))
     log "  $name: created"
 }
 
 get_secret() {
-    podman secret inspect "$1" --format '\{{.SecretData}}' 2>/dev/null | base64 -d
+    podman secret inspect "$1" --showsecret --format '\{{.SecretData}}' 2>/dev/null | tr -d '\n'
 }
 
 declare -A SECRETS
@@ -78,7 +92,12 @@ process_conf() {
 }
 
 # Only process secrets for enabled packages
+# Process shared infrastructure first (postgres, garage) to ensure dependencies are available
+for pkg in postgres garage; do
+    [[ " $ENABLED_PACKAGES " == *" $pkg "* ]] && process_conf "$SECRETS_DIR/$pkg.conf"
+done
 for pkg in $ENABLED_PACKAGES; do
+    [[ "$pkg" == "postgres" || "$pkg" == "garage" ]] && continue
     process_conf "$SECRETS_DIR/$pkg.conf"
 done
 

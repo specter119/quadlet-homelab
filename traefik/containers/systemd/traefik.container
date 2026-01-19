@@ -9,7 +9,9 @@ DefaultDependencies=false
 {{/if}}
 [Service]
 Sockets=http.socket https.socket
-Environment=TZ=Asia/Shanghai
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
 
 [Container]
 NetworkAlias=traefik.{{domain}}

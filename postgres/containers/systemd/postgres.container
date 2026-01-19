@@ -1,0 +1,34 @@
+[Unit]
+Description=Shared PostgreSQL Database (pgvector)
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/pgvector/pgvector:pg17
+Network=traefik.network
+{{#each business_networks}}
+Network={{this}}.network
+{{/each}}
+NetworkAlias=postgres
+
+Volume=postgres-data.volume:/var/lib/postgresql/data
+
+Environment=POSTGRES_USER=postgres
+Secret=postgres-password,type=env,target=POSTGRES_PASSWORD
+
+HealthCmd=pg_isready -U postgres
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=10s
+
+[Install]
+WantedBy=default.target

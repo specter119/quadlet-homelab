@@ -25,6 +25,12 @@ trustedIPs = ["127.0.0.1/32", "172.0.0.0/8", "10.0.0.0/8"]
 [entryPoints.https.http3]
 advertisedPort = 443
 
+[entryPoints.postgres]
+address = ":5432"
+
+[entryPoints.garage]
+address = ":3900"
+
 # Disable default traefik entrypoint (API uses file provider router instead)
 [entryPoints.traefik]
 address = ""

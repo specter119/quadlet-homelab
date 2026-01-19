@@ -1,7 +1,7 @@
 [Unit]
-Description=Omnivore MinIO Bucket Creation
-After=omnivore-minio.service
-Requires=omnivore-minio.service
+Description=Omnivore Garage Bucket Creation
+After=garage.service
+Requires=garage.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -13,15 +13,17 @@ Type=oneshot
 RemainAfterExit=yes
 
 [Container]
-Image=docker.io/minio/mc
+Image=docker.io/amazon/aws-cli:latest
 
-Secret=omnivore-minio-user,type=env,target=MINIO_USER
-Secret=omnivore-minio-password,type=env,target=MINIO_PASSWORD
+Secret=omnivore-s3-access-key,type=env,target=AWS_ACCESS_KEY_ID
+Secret=omnivore-s3-secret-key,type=env,target=AWS_SECRET_ACCESS_KEY
 
 Network=omnivore.network
 Entrypoint=/bin/sh
 
-Exec=-c "sleep 5 && until mc alias set myminio http://minio:9000 $MINIO_USER $MINIO_PASSWORD; do echo 'waiting...' && sleep 1; done && mc mb myminio/omnivore --ignore-existing && mc anonymous set public myminio/omnivore"
+Environment=AWS_DEFAULT_REGION=garage
+
+Exec=-c "sleep 10 && aws --endpoint-url http://garage:3900 s3 mb s3://omnivore || true"
 
 [Install]
 WantedBy=omnivore.target
