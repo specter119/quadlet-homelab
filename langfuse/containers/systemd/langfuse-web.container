@@ -76,7 +76,7 @@ Environment=LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
 
 # Traefik labels
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 # HTTP -> HTTPS redirect
 Label=traefik.http.routers.langfuse-http.entrypoints=http

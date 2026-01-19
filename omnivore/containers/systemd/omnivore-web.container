@@ -29,7 +29,7 @@ Environment=NEXT_PUBLIC_HIGHLIGHTS_BASE_URL=https://omnivore.{{domain}}
 
 # Traefik labels
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 # HTTP -> HTTPS redirect
 Label=traefik.http.routers.omnivore-http.entrypoints=http

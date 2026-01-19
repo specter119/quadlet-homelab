@@ -47,11 +47,6 @@
 
 6. **配置 Traefik labels** - 在 .container 文件中添加（见下方模板）
 
-**命名规范**：
-
-- 域名：`<service>.{{domain}}`（domain 变量在 `.dotter/local.toml` 定义）
-- 网络：`traefik.network`
-
 ## Quadlet 基础
 
 ### 文件类型
@@ -62,6 +57,19 @@
 | `.volume` | 命名卷定义 | `~/.config/containers/systemd/` |
 | `.network` | 网络定义 | `~/.config/containers/systemd/` |
 | `.target` | 服务组 | `~/.config/systemd/user/` |
+
+### 命名规范
+
+**保持简洁，让 Quadlet 自动命名**。Quadlet 生成的资源会自动加 `systemd-` 前缀，便于区分。
+
+| 资源类型 | 是否指定名称 | 说明 |
+|----------|-------------|------|
+| `ContainerName` | ❌ 不指定 | 自动生成 `systemd-<filename>` |
+| `VolumeName` | ❌ 不指定 | 自动生成 `systemd-<filename>` |
+| `NetworkName` | ❌ 不指定 | 自动生成 `systemd-<filename>` |
+| `NetworkAlias` | ✅ 按需指定 | 服务栈内被其他容器访问时才需要 |
+
+**例外**：`NetworkAlias` 用于容器间通信的 DNS 别名，只有需要被访问的容器才指定（如数据库、Redis），主动访问其他服务的容器（如 Web、Worker）无需设置。
 
 ### 自启动
 
@@ -106,7 +114,7 @@ Network=traefik.network
 
 # Traefik labels - 启用发现
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 # HTTP -> HTTPS 重定向
 Label=traefik.http.routers.<service>-http.entrypoints=http
@@ -170,7 +178,7 @@ WantedBy=default.target
 
 ### 容器间通信
 
-Quadlet 生成的容器名会加 `systemd-` 前缀（如 `systemd-langfuse-postgres`），导致无法用简短名称访问。使用 `NetworkAlias` 提供 DNS 别名：
+使用 `NetworkAlias` 提供 DNS 别名，让其他容器通过短名称访问：
 
 ```ini
 # 数据库容器 - 需要被其他容器访问，提供短别名

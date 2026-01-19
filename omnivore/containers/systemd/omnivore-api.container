@@ -59,7 +59,7 @@ HealthRetries=6
 
 # Traefik labels
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 # HTTP -> HTTPS redirect
 Label=traefik.http.routers.omnivore-api-http.entrypoints=http

@@ -21,7 +21,7 @@ NetworkAlias=image-proxy
 
 # Traefik labels for image proxy
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 Label=traefik.http.routers.omnivore-images-http.entrypoints=http
 Label=traefik.http.routers.omnivore-images-http.rule="Host(`omnivore-api.{{domain}}`) && PathPrefix(`/images`)"

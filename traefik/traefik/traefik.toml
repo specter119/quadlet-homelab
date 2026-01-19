@@ -32,7 +32,7 @@ address = ""
 [providers.docker]
 endpoint = "unix:///var/run/docker.sock"
 exposedByDefault = false
-network = "traefik"
+network = "systemd-traefik"
 watch = true
 
 [providers.file]

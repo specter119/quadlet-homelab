@@ -33,7 +33,7 @@ AddHost=traefik.{{domain}}:127.0.0.1
 
 # Traefik labels for docker provider discovery
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 [Install]
 WantedBy=default.target

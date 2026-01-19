@@ -24,7 +24,7 @@ Environment=DOZZLE_ENABLE_ACTIONS=true
 
 # Traefik labels
 Label=traefik.enable=true
-Label=traefik.docker.network=traefik
+Label=traefik.docker.network=systemd-traefik
 
 # HTTP -> HTTPS redirect
 Label=traefik.http.routers.dozzle-http.entrypoints=http
