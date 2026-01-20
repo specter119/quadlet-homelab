@@ -210,6 +210,31 @@ NetworkAlias=postgres
 # Web 容器 - 只访问其他服务，无需 alias
 ```
 
+### 基础服务依赖（Postgres / S3）
+
+**有依赖就必须显式声明**。判断依据是环境变量中是否出现对应连接信息：
+
+- Postgres：`PGHOST=postgres`、`PG_HOST=postgres`、`POSTGRES_USER=...`、`POSTGRES_DB=...`、`POSTGRES_PASSWORD=...`、
+  `POSTGRES_PORT=5432`、`DATABASE_URL=postgresql://...@postgres:5432/...`
+- S3/Garage：`AWS_S3_ENDPOINT_URL=http://garage:3900`、`LOCAL_MINIO_URL=http://garage:3900`、
+  `AWS_ENDPOINT_URL=...garage...`、`S3_ENDPOINT=...garage...`、`MINIO_ENDPOINT=...garage...`
+
+当容器配置包含上述变量时，必须在 `[Unit]` 中显式添加依赖：
+
+```ini
+Requires=postgres.service
+After=postgres.service
+
+Requires=garage.service
+After=garage.service
+```
+
+参考：
+
+- <https://hub.docker.com/_/postgres>
+- <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html>
+- <https://docs.aws.amazon.com/sdkref/latest/guide/feature-endpoints.html>
+
 ### Secrets 管理
 
 使用 **Podman Secret** 管理敏感配置，密钥存储在本地，不进 git。

@@ -2,7 +2,7 @@
 Description=Plane Background Worker
 PartOf=plane.target
 Requires=postgres.service garage.service plane-redis.service plane-mq.service
-After=plane-api.service garage.service
+After=plane-api.service postgres.service garage.service plane-redis.service plane-mq.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
