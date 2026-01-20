@@ -13,10 +13,8 @@ Restart=always
 
 [Container]
 Image=docker.io/pgvector/pgvector:pg17
-Network=traefik.network
-{{#each business_networks}}
-Network={{this}}.network
-{{/each}}
+# BEGIN AUTOGEN NETWORKS
+# END AUTOGEN NETWORKS
 NetworkAlias=postgres
 
 Volume=postgres-data.volume:/var/lib/postgresql/data

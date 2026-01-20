@@ -14,16 +14,9 @@ Restart=always
 
 [Container]
 Image=docker.io/dxflrs/garage:v2.1.0
-Network=traefik.network
-{{#each business_networks}}
-Network={{this}}.network
-{{/each}}
+# BEGIN AUTOGEN NETWORKS
+# END AUTOGEN NETWORKS
 NetworkAlias=garage
-
-# Traefik TCP (S3 API)
-Label=traefik.tcp.routers.garage.entrypoints=garage
-Label=traefik.tcp.routers.garage.rule=HostSNI(`*`)
-Label=traefik.tcp.services.garage.loadbalancer.server.port=3900
 
 Volume=garage-meta.volume:/var/lib/garage/meta
 Volume=garage-data.volume:/var/lib/garage/data

@@ -54,14 +54,14 @@ Environment=REDIS_PORT=6379
 # S3/Garage Event Upload
 Environment=LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
 Environment=LANGFUSE_S3_EVENT_UPLOAD_REGION=garage
-Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://garage.{{domain}}:3900
+Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://garage:3900
 Environment=LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
 Environment=LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
 
 # S3/Garage Media Upload
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_REGION=garage
-Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://garage.{{domain}}:3900
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://garage:3900
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
 
@@ -70,7 +70,7 @@ Environment=LANGFUSE_S3_BATCH_EXPORT_ENABLED=false
 Environment=LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse
 Environment=LANGFUSE_S3_BATCH_EXPORT_PREFIX=exports/
 Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=garage
-Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://garage.{{domain}}:3900
+Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://garage:3900
 Environment=LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
 
 # Traefik labels

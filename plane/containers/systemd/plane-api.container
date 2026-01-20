@@ -25,7 +25,7 @@ NetworkAlias=api
 
 Exec=./bin/docker-entrypoint-api.sh
 
-Environment=PGHOST=postgres.{{domain}}
+Environment=PGHOST=postgres
 Environment=PGDATABASE=plane
 Environment=POSTGRES_USER=postgres
 Environment=POSTGRES_DB=plane
@@ -45,7 +45,7 @@ Environment=RABBITMQ_VHOST=plane
 
 # Garage/S3
 Environment=USE_MINIO=1
-Environment=AWS_S3_ENDPOINT_URL=http://garage.{{domain}}:3900
+Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
 Environment=AWS_S3_BUCKET_NAME=plane
 Environment=AWS_REGION=garage
 Environment=FILE_SIZE_LIMIT=5242880

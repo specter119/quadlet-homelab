@@ -16,6 +16,39 @@ TOTAL=0
 
 log() { $VERBOSE && echo "$@" || true; }
 
+needs_dep() {
+    local pkg=$1 dep=$2
+    local dir="$SOURCE_DIR/$pkg/containers/systemd"
+    [[ -d "$dir" ]] || return 1
+    grep -Eq "(^|[[:space:]])(Requires|After)=.*\\b${dep}\\.service\\b" "$dir"/*.container 2>/dev/null
+}
+
+add_unique_net() {
+    local pkg=$1
+    local -n seen=$2
+    local -n list=$3
+    if [[ -z "${seen[$pkg]}" ]]; then
+        seen["$pkg"]=1
+        list+=("$pkg")
+    fi
+}
+
+update_network_block() {
+    local file=$1 insert=$2
+    local begin="# BEGIN AUTOGEN NETWORKS"
+    local end="# END AUTOGEN NETWORKS"
+    local tmp
+    [[ -f "$file" ]] || return 0
+    tmp=$(mktemp)
+    awk -v begin="$begin" -v end="$end" -v insert="$insert" '
+        $0==begin {print; if (insert!="") print insert; inblock=1; next}
+        $0==end {inblock=0; print; next}
+        inblock {next}
+        {print}
+    ' "$file" > "$tmp"
+    mv "$tmp" "$file"
+}
+
 echo "[pre-deploy] Checking secrets..."
 
 # Parse enabled packages from local.toml
@@ -29,6 +62,30 @@ if [[ -z "$ENABLED_PACKAGES" ]]; then
 fi
 ENABLED_PACKAGES=$(echo "$ENABLED_PACKAGES" | tr '\n' ' ' | xargs)
 log "Enabled packages: $ENABLED_PACKAGES"
+
+echo "[pre-deploy] Updating shared service networks..."
+declare -A POSTGRES_SEEN GARAGE_SEEN
+POSTGRES_NETWORKS=()
+GARAGE_NETWORKS=()
+
+for pkg in $ENABLED_PACKAGES; do
+    [[ "$pkg" == "postgres" || "$pkg" == "garage" ]] && continue
+    [[ -f "$SOURCE_DIR/$pkg/containers/systemd/$pkg.network" ]] || continue
+    needs_dep "$pkg" "postgres" && add_unique_net "$pkg" POSTGRES_SEEN POSTGRES_NETWORKS
+    needs_dep "$pkg" "garage" && add_unique_net "$pkg" GARAGE_SEEN GARAGE_NETWORKS
+done
+
+build_insert() {
+    local -n list=$1
+    local output=""
+    for pkg in "${list[@]}"; do
+        output+="Network=${pkg}.network"$'\n'
+    done
+    echo -n "$output"
+}
+
+update_network_block "$SOURCE_DIR/postgres/containers/systemd/postgres.container" "$(build_insert POSTGRES_NETWORKS)"
+update_network_block "$SOURCE_DIR/garage/containers/systemd/garage.container" "$(build_insert GARAGE_NETWORKS)"
 
 # Cache existing secrets once at startup
 declare -A EXISTING_SECRETS
