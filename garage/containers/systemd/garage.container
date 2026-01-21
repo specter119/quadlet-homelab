@@ -1,7 +1,5 @@
 [Unit]
 Description=Shared S3-compatible Storage (Garage)
-After=traefik.service
-Wants=traefik.service
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
@@ -16,5 +14,4 @@ NetworkAlias=garage
 Volume=garage-meta.volume:/var/lib/garage/meta
 Volume=garage-data.volume:/var/lib/garage/data
 Volume=%h/.config/garage/garage.toml:/etc/garage.toml:ro
-[Install]
-WantedBy=default.target
+# No [Install] - started on-demand by dependent services

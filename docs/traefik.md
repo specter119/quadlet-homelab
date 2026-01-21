@@ -113,14 +113,9 @@ sudo systemctl restart NetworkManager
 │  ├── http (:80)   → 重定向到 https                           │
 │  └── https (:443) → 业务服务                                 │
 ├─────────────────────────────────────────────────────────────┤
-│  TCP EntryPoints (共享基础设施)                              │
-│  ├── postgres (:5432) → postgres.{{domain}}:5432            │
-│  └── garage (:3900)   → garage.{{domain}}:3900              │
-├─────────────────────────────────────────────────────────────┤
-│  File Provider (middlewares.toml, tcp.toml)                 │
+│  File Provider (middlewares.toml)                           │
 │  ├── 共享中间件: gzip, redir-https                           │
-│  ├── Dashboard 路由 → api@internal                          │
-│  └── TCP 路由: postgres, garage                             │
+│  └── Dashboard 路由 → api@internal                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Docker Provider (container labels)                         │
 │  ├── dozzle      → dozzle.{{domain}}                        │
@@ -136,7 +131,7 @@ sudo systemctl restart NetworkManager
 - Traefik Dashboard: 使用 File Provider 定义路由
 - 其他服务: 使用 Container Labels，配置与服务绑定，易于管理
 - 共享中间件: 定义在 File Provider，通过 `@file` 后缀引用
-- Label 特殊字符处理: 见 [AGENTS.md 注意事项](../AGENTS.md#注意事项)
+- Label 特殊字符处理: 见 [AGENTS.md](../AGENTS.md#label-值特殊字符必须加引号)
 
 ## API 和 Dashboard 配置
 
@@ -176,47 +171,15 @@ sudo systemctl restart NetworkManager
 
 ## 服务 Labels 模板
 
-> 完整的 Quadlet 服务模板（包含 Labels）详见 [AGENTS.md](../AGENTS.md#单容器服务模板)
+> 完整的 Quadlet 服务模板（包含 Labels）详见 [docs/quadlet.md](quadlet.md#单容器服务模板)
 
-## TCP 路由（共享基础设施）
+## 共享基础设施访问
 
-PostgreSQL 和 Garage 作为共享基础设施，通过 Traefik TCP 路由暴露给各服务访问。
+PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动态加入依赖它们的业务子网，**不经过 Traefik 代理**。
 
-### 配置文件
+| 服务 | 访问方式 | 说明 |
+|------|----------|------|
+| PostgreSQL | `postgres:5432` | 直接通过业务子网访问 |
+| Garage S3 | `garage:3900` | 直接通过业务子网访问 |
 
-`traefik/tcp.toml` 定义 TCP 路由：
-
-```toml
-# PostgreSQL
-[tcp.routers.postgres]
-entryPoints = ["postgres"]
-rule = "HostSNI(`*`)"
-service = "postgres"
-
-[tcp.services.postgres.loadBalancer]
-[[tcp.services.postgres.loadBalancer.servers]]
-address = "postgres:5432"
-
-# Garage S3 API
-[tcp.routers.garage]
-entryPoints = ["garage"]
-rule = "HostSNI(`*`)"
-service = "garage"
-
-[tcp.services.garage.loadBalancer]
-[[tcp.services.garage.loadBalancer.servers]]
-address = "garage:3900"
-```
-
-### 服务访问方式
-
-| 服务 | 内部访问（同网络） | 外部访问（跨网络） |
-|------|-------------------|-------------------|
-| PostgreSQL | `postgres:5432` | `postgres.{{domain}}:5432` |
-| Garage S3 | `garage:3900` | `garage.{{domain}}:3900` |
-
-### 设计原因
-
-- **网络隔离**：各服务栈（langfuse, plane, omnivore）保持独立子网
-- **简化配置**：postgres/garage 只需加入 `traefik.network`，无需加入所有服务网络
-- **统一入口**：所有跨网络访问通过 Traefik，便于监控和管理
+详见 [docs/quadlet.md](quadlet.md#网络架构)。

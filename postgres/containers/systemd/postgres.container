@@ -1,7 +1,5 @@
 [Unit]
 Description=Shared PostgreSQL Database (pgvector)
-After=traefik.service
-Wants=traefik.service
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
 DefaultDependencies=false
@@ -20,5 +18,4 @@ HealthInterval=10s
 HealthTimeout=5s
 HealthRetries=5
 HealthStartPeriod=10s
-[Install]
-WantedBy=default.target
+# No [Install] - started on-demand by dependent services
