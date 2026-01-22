@@ -1,8 +1,8 @@
 [Unit]
 Description=Langfuse Web Application
 PartOf=langfuse.target
-Requires=postgres.service garage.service langfuse-redis.service langfuse-clickhouse.service
-After=postgres.service garage.service langfuse-redis.service langfuse-clickhouse.service
+Requires=langfuse-initdb.service garage.service langfuse-redis.service langfuse-clickhouse.service
+After=langfuse-initdb.service garage.service langfuse-redis.service langfuse-clickhouse.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
