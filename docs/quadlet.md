@@ -166,6 +166,43 @@ After=garage.service
 - <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html>
 - <https://docs.aws.amazon.com/sdkref/latest/guide/feature-endpoints.html>
 
+## Volume 规范
+
+### 默认不创建 log volume
+
+容器日志输出到 stdout/stderr，由 Podman journald 驱动统一管理。
+
+- 查看日志：`journalctl --user -u <service> -f` 或使用 Dozzle Web UI
+- 日志持久化、轮转由 systemd-journald 处理
+
+```ini
+# ❌ 不推荐 - 日志不需要持久化
+Volume=xxx-logs.volume:/var/log/xxx
+
+# ✅ 正确 - 只持久化数据
+Volume=xxx-data.volume:/var/lib/xxx
+```
+
+**例外情况**（需要单独 log volume）：
+
+1. 日志内容与 stdout 不同（如应用写入特定格式的审计日志）
+2. 日志量极大且需要独立管理（如数据库查询日志）
+3. 第三方工具需要读取日志文件（如日志分析器）
+
+若无上述情况，**禁止创建 log volume**，避免数据重复和磁盘浪费。
+
+## Label 规范
+
+### 特殊字符必须加引号
+
+```ini
+# ❌ 错误 - 特殊字符后的内容会被截断
+Label=traefik.http.routers.xxx.rule=Host(`a.com`) && PathPrefix(`/path`)
+
+# ✅ 正确 - 双引号保护完整值
+Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
+```
+
 ## 参考命令
 
 | 主题                               | 命令                      |

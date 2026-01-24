@@ -12,16 +12,16 @@
 │  └── Tailscale Client (登录同一 tailnet)                     │
 │      └── Split DNS: *.homelab.com → 100.x.x.x (m600)        │
 └────────────────────────┬────────────────────────────────────┘
-                         │ WireGuard Tunnel
+                         │ WireGuard Tunnel (DNS on port 53)
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  https://dozzle.homelab.com                                 │
-│                        │                                    │
-│                        ▼                                    │
 │  Homelab Host (m600)                                        │
 │  ├── Tailscale IP: 100.x.x.x                                │
-│  ├── dnsmasq (监听 Tailscale IP，解析 *.homelab.com)         │
+│  ├── dnsmasq (127.0.0.1:53，解析 *.homelab.com → TS_IP)      │
 │  └── Traefik (Host-based routing) → Dozzle                  │
+│                                                             │
+│  DNS 查询流程：                                              │
+│  Remote → Tailscale Split DNS → m600:53 → dnsmasq → TS_IP   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -34,59 +34,55 @@
 
 ## 配置步骤
 
-### 1. 获取 Tailscale IP
+### 1. 启动 Tailscale 并添加标签
+
+首先在 [Tailscale ACL](https://login.tailscale.com/admin/acls) 中定义 tag owner：
+
+```json
+{
+  "tagOwners": {
+    "tag:homelab": ["autogroup:admin"]
+  }
+}
+```
+
+然后启动 Tailscale 并获取 IP：
 
 ```bash
+sudo tailscale up --advertise-tags=tag:homelab
 TS_IP=$(tailscale ip -4)
-echo $TS_IP
+echo "Tailscale IP: $TS_IP"
 # 输出示例: 100.81.77.106
 ```
 
 后续步骤都使用 `$TS_IP` 变量。
 
+> **重要**：如果 ACL 规则使用了 `"dst": ["tag:homelab"]` 限制访问，没有这个标签会导致远程设备无法访问主机。
+
 ### 2. 配置 dnsmasq（需要 sudo）
 
-修改 dnsmasq 配置，让它：
-
-1. 监听 Tailscale IP（供远程设备查询）
-2. 将 `*.homelab.com` 解析到 Tailscale IP
+修改 dnsmasq 配置，将 `*.homelab.com` 解析到 Tailscale IP：
 
 ```bash
-# 更新 homelab.conf - 解析到 Tailscale IP
 sudo tee /etc/NetworkManager/dnsmasq.d/homelab.conf << EOF
 address=/.homelab.com/${TS_IP}
 EOF
 
-# 添加监听配置 - 让 dnsmasq 也监听 Tailscale IP
-sudo tee /etc/NetworkManager/dnsmasq.d/tailscale.conf << EOF
-listen-address=${TS_IP}
-bind-interfaces
-EOF
-
-# 重启 NetworkManager 使配置生效
 sudo systemctl restart NetworkManager
 ```
 
-验证 dnsmasq 监听：
+> **注意**：NetworkManager 的 dnsmasq 插件硬编码了 `--bind-interfaces --listen-address=127.0.0.1`，
+> 无法通过配置文件让 dnsmasq 额外监听 Tailscale IP（`bind-dynamic` 与 `--bind-interfaces` 互斥）。
+> 因此我们依赖 Tailscale Split DNS 将 DNS 查询转发到 127.0.0.1，而不是直接让 dnsmasq 监听 Tailscale IP。
+
+验证本机 dnsmasq 正常运行：
 
 ```bash
 ss -tlnp | grep :53
-# 应看到 $TS_IP:53
+# 应看到 127.0.0.1:53
 ```
 
-### 3. 给 Homelab 主机添加标签（Admin Console）
-
-如果你的 Tailscale grants 规则使用了标签限制访问（如 `"dst": ["tag:homelab"]`），需要给主机打标签：
-
-1. 打开 [Tailscale Admin Console](https://login.tailscale.com/admin/machines)
-2. 找到 homelab 主机（如 m600）
-3. 点击 **...** → **Edit tags**
-4. 添加 `tag:homelab`
-5. 保存
-
-> **重要**：如果没有这个标签，远程设备将无法访问主机（ping 能通，但 TCP 连接超时）。
-
-### 4. 配置 Tailscale Split DNS（Admin Console）
+### 3. 配置 Tailscale Split DNS（Admin Console）
 
 1. 打开 [Tailscale Admin Console](https://login.tailscale.com/admin/dns)
 2. 进入 **DNS** 页面
@@ -98,7 +94,7 @@ ss -tlnp | grep :53
 
 > 配置后，tailnet 内所有设备查询 `*.homelab.com` 时会自动转发到 m600 的 dnsmasq。
 
-### 5. 验证
+### 4. 验证
 
 #### 本机验证
 
@@ -126,14 +122,14 @@ dig @$TS_IP dozzle.homelab.com +short
 
 ## 故障排除
 
-### dnsmasq 未监听 Tailscale IP
+### dnsmasq 未运行
 
 ```bash
-# 检查监听端口
+# 检查监听端口（应看到 127.0.0.1:53）
 ss -tlnp | grep :53
 
-# 检查配置
-cat /etc/NetworkManager/dnsmasq.d/tailscale.conf
+# 检查配置语法
+cat /etc/NetworkManager/dnsmasq.d/homelab.conf
 
 # 重启 NetworkManager
 sudo systemctl restart NetworkManager
@@ -164,19 +160,12 @@ dig @$TS_IP dozzle.homelab.com
 
 ## 附录：FlClash 与 Tailscale 共存
 
-Android 上同时使用 FlClash（代理）和 Tailscale 时，需配置 FlClash 让 homelab 流量走 Tailscale：
+Android 上同时使用 FlClash 和 Tailscale 时，在 FlClash 中配置域名服务器策略：
 
-```yaml
-# DNS 配置 - 让 homelab 域名走 Tailscale DNS
-dns:
-  nameserver-policy:
-    "+.homelab.com": "<TS_IP>"
+**工具** → **基本配置** → **DNS** → **域名服务器策略** → 新建：
 
-# 规则 - Tailscale 和 homelab 流量直连
-rules:
-  - IP-CIDR,100.64.0.0/10,DIRECT
-  - DOMAIN-SUFFIX,homelab.com,DIRECT
-```
+- 域名：`+.homelab.com`
+- 服务器：`<TS_IP>`（如 `100.81.77.106`）
 
 ## 参考
 

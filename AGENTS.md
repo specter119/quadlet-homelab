@@ -5,13 +5,22 @@
 | 文档 | Scope |
 | ---- | ----- |
 | README.md | 用户入门：项目简介、服务列表、冷启动、常用命令 |
-| AGENTS.md | 新建服务检查清单、核心规则 |
-| docs/quadlet.md | Quadlet 文件类型、命名规范、网络架构、容器模板 |
+| AGENTS.md | 新建服务检查清单 |
+| docs/quadlet.md | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
 | docs/secrets.md | Secrets 格式定义、一致性检查 |
 | docs/hooks.md | pre/post_deploy 脚本、handlebars 转义 |
 | docs/traefik.md | Traefik 配置：SSL、域名解析、中间件 |
 | docs/tailscale.md | Tailscale 远程访问配置 |
 | docs/\<service\>.md | 特定业务服务的详细配置 |
+
+### 内容归属原则
+
+| 内容类型 | 归属 |
+| -------- | ---- |
+| **规范/规则**（How：如何做） | 对应技术的 `docs/*.md` |
+| **流程/步骤**（What：做什么） | `AGENTS.md` 或 `README.md` |
+
+**避免重复**：规则只在一处定义，流程通过链接引用
 
 ### 维护规范
 
@@ -51,38 +60,3 @@
 5. **更新 `docs/traefik.md`** - hosts 临时配置添加新域名
 
 6. **配置 Traefik labels** - 见 [docs/quadlet.md](docs/quadlet.md#单容器服务模板)
-
-## 核心规则
-
-### 默认不创建 log volume
-
-容器日志输出到 stdout/stderr，由 Podman journald 驱动统一管理。
-
-- 查看日志：`journalctl --user -u <service> -f` 或使用 Dozzle Web UI
-- 日志持久化、轮转由 systemd-journald 处理
-
-```ini
-# ❌ 不推荐 - 日志不需要持久化
-Volume=xxx-logs.volume:/var/log/xxx
-
-# ✅ 正确 - 只持久化数据
-Volume=xxx-data.volume:/var/lib/xxx
-```
-
-**例外情况**（需要单独 log volume）：
-
-1. 日志内容与 stdout 不同（如应用写入特定格式的审计日志）
-2. 日志量极大且需要独立管理（如数据库查询日志）
-3. 第三方工具需要读取日志文件（如日志分析器）
-
-若无上述情况，**禁止创建 log volume**，避免数据重复和磁盘浪费。
-
-### Label 值特殊字符必须加引号
-
-```ini
-# ❌ 错误 - 特殊字符后的内容会被截断
-Label=traefik.http.routers.xxx.rule=Host(`a.com`) && PathPrefix(`/path`)
-
-# ✅ 正确 - 双引号保护完整值
-Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
-```

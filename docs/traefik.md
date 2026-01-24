@@ -81,6 +81,8 @@ address=/.homelab.com/127.0.0.1
 EOF
 ```
 
+> **远程访问**：如需通过 Tailscale 从外部访问 homelab，需将 `127.0.0.1` 改为 Tailscale IP。详见 [docs/tailscale.md](tailscale.md#2-配置-dnsmasq需要-sudo)。
+
 1. 重启 NetworkManager：
 
 ```bash

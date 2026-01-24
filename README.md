@@ -8,7 +8,7 @@
 
 | 服务 | 说明 | 文档 |
 |------|------|------|
-| Tailscale | 子网路由器，远程访问 homelab | [docs/tailscale.md](docs/tailscale.md) |
+| Tailscale | 远程访问 homelab（Split DNS） | [docs/tailscale.md](docs/tailscale.md) |
 | Traefik | 反向代理，统一域名访问，自动 HTTPS | [docs/traefik.md](docs/traefik.md) |
 | PostgreSQL | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 | - |
 | Garage | 共享 S3 存储，替代各服务独立的 MinIO | - |
