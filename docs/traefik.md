@@ -101,9 +101,10 @@ sudo systemctl restart NetworkManager
 <WSL_IP> omnivore.<your-domain>
 <WSL_IP> omnivore-api.<your-domain>
 <WSL_IP> plane.<your-domain>
+<WSL_IP> copyparty.<your-domain>
 ```
 
-> 将 `<your-domain>` 替换为你的实际域名（如 `worklab.com` 或 `homelab.com`）
+> 将 `<your-domain>` 替换为你的实际域名（如 `homelab.com`）
 
 ## 架构设计
 
@@ -126,7 +127,7 @@ sudo systemctl restart NetworkManager
 └─────────────────────────────────────────────────────────────┘
 ```
 
-> **注**：`{{domain}}` 是 dotter 模板变量，默认 `homelab.com`，可在 `.dotter/local.toml` 覆盖为 `worklab.com` 等。
+> **注**：`{{domain}}` 是 dotter 模板变量，可在 `.dotter/local.toml` 设置，例如 `homelab.com`。
 
 **设计原则**：
 

@@ -29,3 +29,6 @@ omnivore = '~/.config'
 
 [plane.files]
 plane = '~/.config'
+
+[copyparty.files]
+copyparty = '~/.config'

@@ -22,6 +22,7 @@
 | Langfuse | LLM 应用可观测性 | - |
 | Omnivore | Read-it-later 阅读服务 | [docs/omnivore.md](docs/omnivore.md) |
 | Plane | 项目管理 | - |
+| Copyparty | 文件共享服务 | - |
 
 ## 快速开始
 

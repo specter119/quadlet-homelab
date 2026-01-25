@@ -1,0 +1,45 @@
+[Unit]
+Description=Copyparty - File Server
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Restart=always
+
+[Container]
+Image=docker.io/copyparty/ac
+Pull=newer
+NoNewPrivileges=true
+Network=traefik.network
+
+# Share home directory at /w, store config and metadata under /cfg
+Volume=%h:/w
+Volume=%E/copyparty:/cfg
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.copyparty-http.entrypoints=http
+Label=traefik.http.routers.copyparty-http.middlewares=redir-https@file
+Label=traefik.http.routers.copyparty-http.rule=Host(`copyparty.{{domain}}`)
+Label=traefik.http.routers.copyparty-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.copyparty-https.entrypoints=https
+Label=traefik.http.routers.copyparty-https.tls=true
+Label=traefik.http.routers.copyparty-https.middlewares=gzip@file
+Label=traefik.http.routers.copyparty-https.rule=Host(`copyparty.{{domain}}`)
+Label=traefik.http.services.copyparty.loadbalancer.server.port=3923
+
+[Install]
+WantedBy=default.target

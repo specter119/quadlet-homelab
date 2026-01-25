@@ -16,8 +16,33 @@ TOTAL=0
 
 log() { $VERBOSE && echo "$@" || true; }
 
+ensure_domain() {
+  python3 - <<'PY'
+import tomllib
+from pathlib import Path
+
+path = Path(".dotter/local.toml")
+default_domain = 'homelab.com'
+
+if not path.exists():
+    raise SystemExit(0)
+
+data = tomllib.loads(path.read_text(encoding='utf-8'))
+variables = data.get("variables", {})
+if isinstance(variables, dict) and "domain" in variables:
+    raise SystemExit(0)
+
+with path.open("a", encoding="utf-8") as fh:
+    fh.write("\n[variables]\n")
+    fh.write(f'domain = "{default_domain}"\n')
+print(f"[pre-deploy] Added default domain to {path}: {default_domain}")
+PY
+}
+
+ensure_domain
+
 echo "[pre-deploy] Checking secrets..."
-: > "$HOME/.cache/dotter-render.log"
+: >"$HOME/.cache/dotter-render.log"
 
 # Parse enabled packages from local.toml
 # Format: packages = ['traefik', 'silverbullet', 'dozzle', 'omnivore']
