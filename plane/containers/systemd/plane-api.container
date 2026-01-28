@@ -57,5 +57,8 @@ Environment=DEBUG=0
 Environment=GUNICORN_WORKERS=1
 Environment=API_KEY_RATE_LIMIT=60/minute
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=plane.target

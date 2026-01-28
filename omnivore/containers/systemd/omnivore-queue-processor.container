@@ -43,5 +43,8 @@ Environment=EXPORT_QUEUE_NAME=omnivore-backend-queue
 Environment=GATEWAY_URL=http://omnivore-api:8080/api
 Environment=CLIENT_URL=https://omnivore.{{domain}}
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=omnivore.target

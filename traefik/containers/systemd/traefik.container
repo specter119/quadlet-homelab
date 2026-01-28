@@ -33,6 +33,9 @@ AddHost=collect.traefik.io:127.0.0.1
 AddHost=stats.g.doubleclick.net:127.0.0.1
 AddHost=traefik.{{domain}}:127.0.0.1
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # Traefik labels for docker provider discovery
 Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik

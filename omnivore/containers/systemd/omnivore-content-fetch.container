@@ -32,5 +32,8 @@ Environment=GCS_UPLOAD_BUCKET=omnivore
 Environment=AWS_REGION=garage
 Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=omnivore.target

@@ -21,5 +21,8 @@ HealthInterval=5s
 HealthTimeout=3s
 HealthRetries=10
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=omnivore.target

@@ -16,5 +16,8 @@ Network=plane.network
 NetworkAlias=plane-redis
 Volume=plane-redis-data.volume:/data
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=plane.target

@@ -102,6 +102,7 @@ sudo systemctl restart NetworkManager
 <WSL_IP> omnivore-api.<your-domain>
 <WSL_IP> plane.<your-domain>
 <WSL_IP> copyparty.<your-domain>
+<WSL_IP> marimo.<your-domain>
 ```
 
 > 将 `<your-domain>` 替换为你的实际域名（如 `homelab.com`）

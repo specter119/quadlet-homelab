@@ -16,5 +16,8 @@ Image=artifacts.plane.so/makeplane/plane-frontend:stable
 Network=plane.network
 NetworkAlias=web
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=plane.target

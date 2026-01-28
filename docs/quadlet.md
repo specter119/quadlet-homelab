@@ -66,6 +66,9 @@ Image=<image>
 # Pull=newer
 Network=traefik.network
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # Traefik labels - 启用发现
 Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik

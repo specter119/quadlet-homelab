@@ -26,5 +26,8 @@ HealthInterval=5s
 HealthTimeout=30s
 HealthRetries=5
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=plane.target

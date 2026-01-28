@@ -25,6 +25,9 @@ Environment=FILE_SIZE_LIMIT=5242880
 Environment=BUCKET_NAME=uploads
 Environment=SITE_ADDRESS=:80
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # Traefik labels
 Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik

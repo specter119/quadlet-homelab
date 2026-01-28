@@ -25,5 +25,8 @@ Environment=AWS_DEFAULT_REGION=garage
 
 Exec=-c "sleep 10 && aws --endpoint-url http://garage:3900 s3 mb s3://omnivore || true"
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=omnivore.target

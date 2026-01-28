@@ -27,5 +27,8 @@ HealthTimeout=5s
 HealthRetries=10
 HealthStartPeriod=1s
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=langfuse.target

@@ -31,5 +31,8 @@ Environment=PG_DB=omnivore
 Environment=PG_USER=app_user
 Environment=PG_PORT=5432
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=omnivore.target

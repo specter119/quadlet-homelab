@@ -54,5 +54,8 @@ Environment=FILE_SIZE_LIMIT=5242880
 Environment=WEB_URL=https://plane.{{domain}}
 Environment=DEBUG=0
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=plane.target

@@ -70,5 +70,8 @@ Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=garage
 Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://garage:3900
 Environment=LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=langfuse.target

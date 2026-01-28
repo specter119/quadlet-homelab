@@ -27,6 +27,9 @@ Environment=NEXT_PUBLIC_BASE_URL=https://omnivore.{{domain}}
 Environment=NEXT_PUBLIC_SERVER_BASE_URL=https://omnivore-api.{{domain}}
 Environment=NEXT_PUBLIC_HIGHLIGHTS_BASE_URL=https://omnivore.{{domain}}
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # Traefik labels
 Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik

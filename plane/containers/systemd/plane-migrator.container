@@ -48,5 +48,8 @@ Environment=USE_MINIO=1
 Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
 Environment=AWS_S3_BUCKET_NAME=plane
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 [Install]
 WantedBy=plane.target

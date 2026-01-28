@@ -32,3 +32,6 @@ plane = '~/.config'
 
 [copyparty.files]
 copyparty = '~/.config'
+
+[marimo.files]
+marimo = '~/.config'

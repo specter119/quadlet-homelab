@@ -1,0 +1,50 @@
+[Unit]
+Description=Marimo Notebook Server
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Restart=unless-stopped
+ExecStartPost=/bin/bash -c 'mkdir -p %D/marimo && echo "{\"venv\": \"/root/.cache/uv/environments\"}" > %D/marimo/pyrightconfig.json'
+
+[Container]
+Image=docker.io/astral/uv:python3.13-trixie
+Network=traefik.network
+
+# Data and config mounts
+Volume=%D/marimo:/workspace:Z
+Volume=%E/marimo/marimo.toml:/root/.config/marimo/marimo.toml:Z
+Volume=%E/uv/uv.toml:/root/.config/uv/uv.toml:Z
+
+Exec=uvx --with "marimo[recommended,lsp,mcp],watchdog,httpx[http2]" marimo edit --headless --no-token --host 0.0.0.0 --port 2718 /workspace
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.marimo-http.entrypoints=http
+Label=traefik.http.routers.marimo-http.middlewares=redir-https@file
+Label=traefik.http.routers.marimo-http.rule=Host(`marimo.{{domain}}`)
+Label=traefik.http.routers.marimo-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.marimo-https.entrypoints=https
+Label=traefik.http.routers.marimo-https.tls=true
+Label=traefik.http.routers.marimo-https.middlewares=gzip@file
+Label=traefik.http.routers.marimo-https.rule=Host(`marimo.{{domain}}`)
+Label=traefik.http.services.marimo.loadbalancer.server.port=2718
+
+[Install]
+WantedBy=default.target

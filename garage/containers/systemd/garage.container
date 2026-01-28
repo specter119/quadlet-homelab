@@ -13,5 +13,9 @@ Image=docker.io/dxflrs/garage:v2.1.0
 NetworkAlias=garage
 Volume=garage-meta.volume:/var/lib/garage/meta
 Volume=garage-data.volume:/var/lib/garage/data
-Volume=%h/.config/garage/garage.toml:/etc/garage.toml:ro
+Volume=%E/garage/garage.toml:/etc/garage.toml:ro
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # No [Install] - started on-demand by dependent services

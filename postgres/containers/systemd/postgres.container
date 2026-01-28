@@ -18,4 +18,8 @@ HealthInterval=10s
 HealthTimeout=5s
 HealthRetries=5
 HealthStartPeriod=10s
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # No [Install] - started on-demand by dependent services

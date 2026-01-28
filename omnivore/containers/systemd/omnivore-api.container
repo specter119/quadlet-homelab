@@ -57,6 +57,9 @@ HealthInterval=15s
 HealthTimeout=10s
 HealthRetries=6
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # Traefik labels
 Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik

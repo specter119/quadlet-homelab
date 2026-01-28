@@ -19,6 +19,9 @@ Network=omnivore.network
 Network=traefik.network
 NetworkAlias=image-proxy
 
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
 # Traefik labels for image proxy
 Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik
