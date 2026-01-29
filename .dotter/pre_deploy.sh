@@ -42,7 +42,8 @@ PY
 ensure_domain
 
 echo "[pre-deploy] Checking secrets..."
-: >"$HOME/.cache/dotter-render.log"
+mkdir -p '$HOME/.cache/dotter'
+: >"$HOME/.cache/dotter/render.log"
 
 # Parse enabled packages from local.toml
 # Format: packages = ['traefik', 'silverbullet', 'dozzle', 'omnivore']
