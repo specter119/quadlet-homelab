@@ -42,7 +42,7 @@ PY
 ensure_domain
 
 echo "[pre-deploy] Checking secrets..."
-mkdir -p '$HOME/.cache/dotter'
+mkdir -p "$HOME/.cache/dotter"
 : >"$HOME/.cache/dotter/render.log"
 
 # Parse enabled packages from local.toml
