@@ -179,7 +179,7 @@ keyFile = "/data/ssl/{{domain}}.pem.key"
 
 ```plain
 <WSL_IP> traefik.<your-domain>
-<WSL_IP> silverbullet.<your-domain>
+<WSL_IP> dozzle.<your-domain>
 <WSL_IP> <other services>.<your-domain>
 ```
 
