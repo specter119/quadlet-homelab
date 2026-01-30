@@ -89,9 +89,67 @@ EOF
 sudo systemctl restart NetworkManager
 ```
 
-#### WSL：Windows hosts
+#### WSL：NRPT + dnsmasq（推荐）
 
-在 Windows `C:\Windows\System32\drivers\etc\hosts` 添加（IP 通过 `ip addr show eth0` 获取）：
+目标：Windows 只把 `*.homelab.com` 的解析转发到 WSL 内的 dnsmasq，不改动系统默认 DNS，也不影响 WSL 自己的上网解析。
+
+1. WSL 内安装并配置 dnsmasq（只解析 `homelab.com`）：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y dnsmasq
+```
+
+获取 WSL IP（记为 `<WSL_IP>`）：
+
+```bash
+ip -4 -o addr show dev eth0 | awk '{print $4}' | cut -d/ -f1 | head -n1
+```
+
+写入 dnsmasq 配置并重启：
+
+```bash
+sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << 'EOF'
+bind-interfaces
+interface=eth0
+listen-address=<WSL_IP>
+no-resolv
+domain-needed
+bogus-priv
+local=/homelab.com/
+address=/.homelab.com/<WSL_IP>
+EOF
+
+sudo systemctl enable --now dnsmasq
+sudo systemctl restart dnsmasq
+```
+
+1. Windows 管理员 PowerShell 添加 NRPT 规则（使用上一步输出的 WSL IP）：
+
+```powershell
+Add-DnsClientNrptRule -Namespace ".homelab.com" -NameServers "<WSL_IP>"
+```
+
+1. 验证：
+
+```powershell
+nslookup dozzle.homelab.com <WSL_IP>
+```
+
+如需移除：
+
+```powershell
+Get-DnsClientNrptRule -Namespace ".homelab.com" | Remove-DnsClientNrptRule -Force
+```
+
+> 说明：
+>
+> - NRPT 仅影响系统 DNS 解析器。若浏览器启用了 DoH，请改为系统解析器或关闭 DoH。
+> - 若 WSL IP 变化，需要重新执行 NRPT 命令。
+
+#### WSL：Windows hosts（备用）
+
+如果你不想启用 dnsmasq，可在 Windows `C:\Windows\System32\drivers\etc\hosts` 添加（IP 通过 `ip addr show eth0` 获取）：
 
 ```
 <WSL_IP> traefik.<your-domain>

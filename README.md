@@ -49,7 +49,7 @@ cd quadlet-homelab
 # 2. 创建 dotter 本地配置
 dotter init  # 按提示配置，设置 domain 变量
 
-# 3. 配置 Traefik（SSL 证书、低端口绑定、hosts）
+# 3. 配置 Traefik（SSL 证书、低端口绑定、域名解析）
 # 详见 docs/traefik.md
 
 # 4. 部署配置文件（pre_deploy 自动初始化 secrets，post_deploy 触发 daemon-reload）
