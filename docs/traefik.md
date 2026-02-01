@@ -60,11 +60,18 @@ keyFile = "/data/ssl/{{domain}}.pem.key"
 
 ### 域名解析配置
 
-#### Linux：NetworkManager + dnsmasq
+两种使用场景：
+
+- **本机访问**：只需要本机解析 `*.{{domain}}`（推荐按本节配置）
+- **远程访问**：通过 Tailscale 访问同一域名 → 见 [docs/tailscale.md](tailscale.md)
+
+#### Linux：本机访问（NetworkManager + dnsmasq）
 
 配置一次后自动解析所有子域名，新增服务无需手动添加条目。
 
-1. 启用 dnsmasq：
+> **适用范围**：仅用于本机访问。若需要通过 Tailscale 远程访问同一域名，请改用 [docs/tailscale.md](tailscale.md) 的方案（该方案会替换本节配置，不能叠加）。
+
+1. 启用 NetworkManager 的 dnsmasq：
 
    ```bash
    sudo tee /etc/NetworkManager/conf.d/dns.conf << 'EOF'
@@ -81,13 +88,13 @@ keyFile = "/data/ssl/{{domain}}.pem.key"
    EOF
    ```
 
-   > **远程访问**：如需通过 Tailscale 从外部访问 homelab，需将 `127.0.0.1` 改为 Tailscale IP。详见 [docs/tailscale.md](tailscale.md#2-配置-dnsmasq需要-sudo)。
-
 1. 重启 NetworkManager：
 
    ```bash
    sudo systemctl restart NetworkManager
    ```
+
+> **远程访问**：如需通过 Tailscale 访问同一域名，改用 [docs/tailscale.md](tailscale.md) 的 split DNS 方案。
 
 #### WSL：NRPT + dnsmasq（推荐）
 

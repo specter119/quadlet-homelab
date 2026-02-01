@@ -24,7 +24,7 @@ Volume=%D/marimo:/workspace:Z
 Volume=%E/marimo/marimo.toml:/root/.config/marimo/marimo.toml:Z
 Volume=%E/uv/uv.toml:/root/.config/uv/uv.toml:Z
 
-Exec=uvx --with "marimo[recommended,lsp,mcp],watchdog,httpx[http2]" marimo edit --headless --no-token --host 0.0.0.0 --port 2718 /workspace
+Exec=uvx --with "marimo[recommended,lsp,mcp],watchdog,httpx[http2]" marimo edit --watch --headless --no-token --host 0.0.0.0 --port 2718 /workspace
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet

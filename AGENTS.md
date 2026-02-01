@@ -9,8 +9,8 @@
 | docs/quadlet.md     | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
 | docs/secrets.md     | Secrets 格式定义、一致性检查                                      |
 | docs/hooks.md       | pre/post_deploy 脚本、handlebars 转义                             |
-| docs/traefik.md     | Traefik 配置：SSL、域名解析、中间件                               |
-| docs/tailscale.md   | Tailscale 远程访问配置                                            |
+| docs/traefik.md     | Traefik 配置：SSL、域名解析（本机访问）、中间件                   |
+| docs/tailscale.md   | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
 | docs/\<service\>.md | 特定业务服务的详细配置                                            |
 
 ### 内容归属原则
