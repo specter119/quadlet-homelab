@@ -12,7 +12,7 @@ DefaultDependencies=false
 {{#if (command_success "timedatectl show -p Timezone --value")}}
 Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
 {{/if}}
-Restart=unless-stopped
+Restart=always
 ExecStartPost=/bin/bash -c 'mkdir -p %D/marimo && echo "{\"venv\": \"/root/.cache/uv/environments\"}" > %D/marimo/pyrightconfig.json'
 
 [Container]
