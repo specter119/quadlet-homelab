@@ -126,6 +126,21 @@ EOF
 sudo systemctl restart dnsmasq
 ```
 
+> **建议**：如果 `dnsmasq` 因为 `tailscale0` 尚未创建而启动失败，可用 systemd drop-in 增加依赖：
+>
+> ```bash
+> sudo install -d /etc/systemd/system/dnsmasq.service.d
+> sudo tee /etc/systemd/system/dnsmasq.service.d/override.conf > /dev/null << 'EOF'
+> [Unit]
+> After=tailscaled.service network-online.target
+> Wants=network-online.target
+> Requires=tailscaled.service
+> EOF
+>
+> sudo systemctl daemon-reload
+> sudo systemctl restart dnsmasq
+> ```
+
 > **注意**：dnsmasq 只在 homelab server 上配置，`TS_IP` 就是该 server 自己的 Tailscale IP。
 > 其他客户端通过 Tailscale Split DNS 转发到 server。
 >
@@ -164,22 +179,21 @@ sudo chmod +x /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
 
 > **提示**：不要把 upstream 指向 `127.0.0.53`（systemd-resolved stub），否则会形成回环。
 
-#### 2.4 配置 split DNS（systemd-resolved + dispatcher）
+#### 2.4 配置 split DNS（systemd-resolved + systemd drop-in）
+
+为避免依赖 NetworkManager 的 dispatcher，推荐在 `tailscaled` 启动后由
+systemd 直接设置 split DNS：
 
 ```bash
-sudo tee /etc/NetworkManager/dispatcher.d/90-homelab-splitdns > /dev/null << 'EOF'
-#!/bin/bash
-IFACE="$1"
-STATE="$2"
-
-[[ "$IFACE" != "tailscale0" || "$STATE" != "up" ]] && exit 0
-
-# 仅对 homelab.com 走本机 dnsmasq
-resolvectl dns tailscale0 127.0.0.1
-resolvectl domain tailscale0 "~homelab.com"
+sudo install -d /etc/systemd/system/tailscaled.service.d
+sudo tee /etc/systemd/system/tailscaled.service.d/split-dns.conf > /dev/null << 'EOF'
+[Service]
+ExecStartPost=/usr/bin/resolvectl dns tailscale0 127.0.0.1
+ExecStartPost=/usr/bin/resolvectl domain tailscale0 "~homelab.com"
 EOF
 
-sudo chmod +x /etc/NetworkManager/dispatcher.d/90-homelab-splitdns
+sudo systemctl daemon-reload
+sudo systemctl restart tailscaled
 ```
 
 验证本机 dnsmasq 正常运行：
