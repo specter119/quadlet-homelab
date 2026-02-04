@@ -13,7 +13,6 @@ DefaultDependencies=false
 Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
 {{/if}}
 Restart=always
-ExecStartPost=/bin/bash -c 'mkdir -p %D/marimo && echo "{\"venv\": \"/root/.cache/uv/environments\"}" > %D/marimo/pyrightconfig.json'
 
 [Container]
 Image=docker.io/astral/uv:python3.13-trixie
