@@ -109,18 +109,6 @@ keyFile = "/data/ssl/{{domain}}.pem.key"
    sudo pacman -S dnsmasq
    ```
 
-   ```
-
-   ```
-
-1. **停用 systemd-resolved**（WSL 不需要，且会占用 53 端口）：
-
-   ```bash
-   sudo systemctl disable --now systemd-resolved systemd-resolved-varlink.socket systemd-resolved-monitor.socket
-   ```
-
-   > WSL 的 DNS 解析依赖 `/etc/resolv.conf`（由 WSL 自动生成），不依赖 systemd-resolved。
-
 1. **启用 dnsmasq 配置目录**（Arch Linux 默认未启用）：
 
    ```bash
