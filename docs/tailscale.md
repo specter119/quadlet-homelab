@@ -30,14 +30,14 @@
 
 ## 前置条件
 
+- **已完成 [traefik.md](traefik.md) 的 Linux DNS 配置**（NetworkManager + systemd-resolved + dnsmasq）
 - Tailscale 已安装并登录 (`tailscale status`)
 - [Tailscale Admin Console](https://login.tailscale.com/admin) 访问权限
-- 系统级 dnsmasq 已安装（见下文 2.2）
 - sudo 权限
 
 ## 配置步骤
 
-### 1. 在 homelab server 上启动 Tailscale 并添加标签
+### 1. 启动 Tailscale 并添加标签
 
 在 [Tailscale ACL](https://login.tailscale.com/admin/acls) 中使用最小可用示例（只允许成员访问 homelab server）：
 
@@ -50,7 +50,7 @@
     {
       "src": ["autogroup:member"],
       "dst": ["tag:homelab"],
-      "ip":  ["*"]
+      "ip": ["*"]
     }
   ]
 }
@@ -65,7 +65,7 @@ echo "Tailscale IP: $TS_IP"
 # 输出示例: 100.94.150.93
 ```
 
-后续步骤都使用 `$TS_IP` 变量（仅在这台机器作为 homelab server 时需要）。
+后续步骤都使用 `$TS_IP` 变量。
 
 如果多次修改配置不确定当前状态，可先重置再重新执行：
 
@@ -74,52 +74,16 @@ sudo tailscale up --reset
 sudo tailscale up --accept-dns=false --advertise-tags=tag:homelab
 ```
 
-### 2. 配置系统 dnsmasq + split DNS（推荐）
+### 2. 扩展 dnsmasq 监听 Tailscale IP
 
-目标：本机默认 DNS 走上游（避免容器回环），`homelab.com` 走本机 dnsmasq（127.0.0.1）。
-
-#### 2.0 为什么需要 systemd-resolved
-
-这里有两个目标会冲突：
-
-- 本机要解析 `homelab.com`（需要走本机 dnsmasq）
-- 容器不能继承 `127.0.0.1`（否则回环）
-
-systemd-resolved 负责 **本机 DNS 分流**：
-
-- 默认域名 → 上游 DNS（由 NetworkManager 提供）
-- `homelab.com` → `tailscale0` 的 per-link DNS（127.0.0.1 → dnsmasq）
-
-结果：主机可解析 `homelab.com`，容器仍使用上游 DNS。
-
-> **注意**：该方案会替换 [docs/traefik.md](traefik.md) 的本机 DNS 配置，两者不可叠加。
-
-#### 2.1 NetworkManager 使用 systemd-resolved
+在 [traefik.md](traefik.md) 的基础配置上，让 dnsmasq 额外监听 Tailscale IP，并返回 `$TS_IP`（而非 127.0.0.1）：
 
 ```bash
-sudo tee /etc/NetworkManager/conf.d/dns.conf > /dev/null << 'EOF'
-[main]
-dns=systemd-resolved
-EOF
-
-sudo systemctl enable --now systemd-resolved
-sudo systemctl restart NetworkManager
-```
-
-> **注意**：不要使用 NetworkManager 的 dnsmasq 插件（会导致容器 DNS 指向 127.0.0.1）。
-
-#### 2.2 配置 dnsmasq 监听 Tailscale IP
-
-```bash
-# 1) 启动系统 dnsmasq
-sudo systemctl enable --now dnsmasq
-
-# 2) 写入配置（TS_IP 为 homelab server 自己的 Tailscale IP）
+# 更新 dnsmasq 配置
 sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << EOF
 interface=tailscale0
 listen-address=127.0.0.1,${TS_IP}
 bind-interfaces
-
 address=/.homelab.com/${TS_IP}
 EOF
 
@@ -141,48 +105,11 @@ sudo systemctl restart dnsmasq
 > sudo systemctl restart dnsmasq
 > ```
 
-> **注意**：dnsmasq 只在 homelab server 上配置，`TS_IP` 就是该 server 自己的 Tailscale IP。
-> 其他客户端通过 Tailscale Split DNS 转发到 server。
->
-> **提示**：`/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启。
+> **提示**：`/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
 
-#### 2.3 上游 DNS（动态写入 upstream.conf）
+### 3. 配置 tailscale0 的 split DNS
 
-```bash
-sudo tee /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream > /dev/null << 'EOF'
-#!/bin/bash
-IFACE="$1"
-STATE="$2"
-
-[[ "$STATE" != "up" ]] && exit 0
-
-DNS=$(nmcli -g IP4.DNS dev show "$IFACE" | head -n1)
-
-if [[ -n "$DNS" ]]; then
-  cat > /etc/dnsmasq.d/upstream.conf <<EOT
-no-resolv
-server=$DNS
-server=1.1.1.1
-EOT
-else
-  cat > /etc/dnsmasq.d/upstream.conf <<EOT
-no-resolv
-server=1.1.1.1
-EOT
-fi
-
-systemctl restart dnsmasq
-EOF
-
-sudo chmod +x /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
-```
-
-> **提示**：不要把 upstream 指向 `127.0.0.53`（systemd-resolved stub），否则会形成回环。
-
-#### 2.4 配置 split DNS（systemd-resolved + systemd drop-in）
-
-为避免依赖 NetworkManager 的 dispatcher，推荐在 `tailscaled` 启动后由
-systemd 直接设置 split DNS：
+让 systemd-resolved 把 `homelab.com` 通过 `tailscale0` 接口转发到 dnsmasq：
 
 ```bash
 sudo install -d /etc/systemd/system/tailscaled.service.d
@@ -196,14 +123,21 @@ sudo systemctl daemon-reload
 sudo systemctl restart tailscaled
 ```
 
-验证本机 dnsmasq 正常运行：
+> **注意**：这会替换 traefik.md 中使用 `lo` 接口的 split DNS 配置。如果之前配置过，需要清理：
+>
+> ```bash
+> sudo rm -f /etc/NetworkManager/dispatcher.d/99-homelab-dns
+> sudo resolvectl revert lo 2>/dev/null || true
+> ```
+
+验证 dnsmasq 监听：
 
 ```bash
 ss -u -lpn | rg ':53'
 # 应看到 127.0.0.1:53 和 ${TS_IP}:53
 ```
 
-### 3. 配置 Tailscale Split DNS（Admin Console）
+### 4. 配置 Tailscale Split DNS（Admin Console）
 
 1. 打开 [Tailscale Admin Console](https://login.tailscale.com/admin/dns)
 2. 进入 **DNS** 页面
@@ -213,9 +147,9 @@ ss -u -lpn | rg ':53'
    - **Restrict to domain**: `homelab.com`
 5. 保存
 
-> 配置后，tailnet 内所有设备查询 `*.homelab.com` 时会自动转发到 m600 的 dnsmasq。
+> 配置后，tailnet 内所有设备查询 `*.homelab.com` 时会自动转发到 homelab server 的 dnsmasq。
 
-### 3.1 附录：FlClash 与 Tailscale 共存
+### 附录：FlClash 与 Tailscale 共存
 
 Android 上同时使用 FlClash 和 Tailscale 时，在 FlClash 中配置域名服务器策略：
 
@@ -224,7 +158,7 @@ Android 上同时使用 FlClash 和 Tailscale 时，在 FlClash 中配置域名�
 - 域名：`+.homelab.com`
 - 服务器：`<TS_IP>`（如 `100.94.150.93`）
 
-### 3.2 可选：修复 Tailscale UDP GRO warning
+### 附录：修复 Tailscale UDP GRO warning
 
 ```bash
 sudo tee /etc/NetworkManager/dispatcher.d/50-tailscale-gro > /dev/null << 'EOF'
@@ -235,9 +169,9 @@ EOF
 sudo chmod +x /etc/NetworkManager/dispatcher.d/50-tailscale-gro
 ```
 
-### 4. 验证
+## 验证
 
-#### 本机验证
+### 本机验证
 
 ```bash
 # DNS 解析
@@ -248,7 +182,7 @@ dig dozzle.homelab.com +short
 curl -k https://dozzle.homelab.com
 ```
 
-#### 远程设备验证（手机/其他电脑）
+### 远程设备验证（手机/其他电脑）
 
 确保设备已连接 Tailscale，然后：
 
@@ -266,8 +200,9 @@ dig @$TS_IP dozzle.homelab.com +short
 ### dnsmasq 未运行
 
 ```bash
-# 检查监听端口（应看到 127.0.0.1:53）
+# 检查监听端口
 ss -u -lpn | rg ':53'
+# 应看到 127.0.0.1:53 和 ${TS_IP}:53
 
 # 检查配置语法
 cat /etc/dnsmasq.d/homelab.conf
@@ -307,7 +242,7 @@ resolvectl query dozzle.homelab.com
 ## 安全注意事项
 
 1. **限制 DNS 递归**：当前 dnsmasq 只服务 `homelab.com` zone，不做通用递归解析
-2. **Tailscale ACL**：可在 Admin Console 限制哪些设备能访问 m600 的 DNS 端口
+2. **Tailscale ACL**：可在 Admin Console 限制哪些设备能访问 homelab server 的 DNS 端口
 
 ## 参考
 

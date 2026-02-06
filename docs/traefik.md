@@ -58,45 +58,134 @@ certFile = "/data/ssl/{{domain}}.pem.crt"
 keyFile = "/data/ssl/{{domain}}.pem.key"
 ```
 
-### 域名解析配置
-
-两种使用场景：
-
-- **本机访问**：只需要本机解析 `*.{{domain}}`（推荐按本节配置）
-- **远程访问**：通过 Tailscale 访问同一域名 → 见 [docs/tailscale.md](tailscale.md)
-
-#### Linux：本机访问（NetworkManager + dnsmasq）
+## 域名解析配置
 
 配置一次后自动解析所有子域名，新增服务无需手动添加条目。
 
-> **适用范围**：仅用于本机访问。若需要通过 Tailscale 远程访问同一域名，请改用 [docs/tailscale.md](tailscale.md) 的方案（该方案会替换本节配置，不能叠加）。
+- **本机访问**：按本节配置即可
+- **远程访问**：在本节基础上，额外配置 [Tailscale](tailscale.md)
 
-1. 启用 NetworkManager 的 dnsmasq：
+### Linux：NetworkManager + systemd-resolved + dnsmasq
 
-   ```bash
-   sudo tee /etc/NetworkManager/conf.d/dns.conf << 'EOF'
-   [main]
-   dns=dnsmasq
-   EOF
-   ```
+#### 为什么需要这套组合
 
-1. 添加泛域名解析（以 `homelab.com` 为例）：
+目标是让本机能解析 `*.homelab.com`，同时容器不受影响：
 
-   ```bash
-   sudo tee /etc/NetworkManager/dnsmasq.d/homelab.conf << 'EOF'
-   address=/.homelab.com/127.0.0.1
-   EOF
-   ```
+- **问题**：如果把 DNS 设为 `127.0.0.1`，容器会继承这个配置导致回环
+- **方案**：systemd-resolved 做本机 DNS 分流
+  - 默认域名 → 上游 DNS（由 NetworkManager 提供）
+  - `homelab.com` → 127.0.0.1（dnsmasq）
 
-1. 重启 NetworkManager：
+结果：主机可解析 `homelab.com`，容器仍使用上游 DNS。
 
-   ```bash
-   sudo systemctl restart NetworkManager
-   ```
+#### 1. NetworkManager 使用 systemd-resolved
 
-> **远程访问**：如需通过 Tailscale 访问同一域名，改用 [docs/tailscale.md](tailscale.md) 的 split DNS 方案。
+```bash
+sudo tee /etc/NetworkManager/conf.d/dns.conf > /dev/null << 'EOF'
+[main]
+dns=systemd-resolved
+EOF
 
-#### WSL：NRPT + dnsmasq（推荐）
+sudo systemctl enable --now systemd-resolved
+sudo systemctl restart NetworkManager
+```
+
+> **注意**：不要使用 NetworkManager 的 dnsmasq 插件（会导致容器 DNS 指向 127.0.0.1）。
+
+#### 2. 配置 dnsmasq
+
+```bash
+# 启动系统 dnsmasq
+sudo systemctl enable --now dnsmasq
+
+# 写入配置
+sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << 'EOF'
+listen-address=127.0.0.1
+bind-interfaces
+address=/.homelab.com/127.0.0.1
+EOF
+
+sudo systemctl restart dnsmasq
+```
+
+> **提示**：`/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
+
+#### 3. 上游 DNS（动态写入）
+
+通过 NetworkManager dispatcher 自动获取上游 DNS：
+
+```bash
+sudo tee /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream > /dev/null << 'EOF'
+#!/bin/bash
+IFACE="$1"
+STATE="$2"
+
+[[ "$STATE" != "up" ]] && exit 0
+
+DNS=$(nmcli -g IP4.DNS dev show "$IFACE" | head -n1)
+
+if [[ -n "$DNS" ]]; then
+  cat > /etc/dnsmasq.d/upstream.conf <<EOT
+no-resolv
+server=$DNS
+server=1.1.1.1
+EOT
+else
+  cat > /etc/dnsmasq.d/upstream.conf <<EOT
+no-resolv
+server=1.1.1.1
+EOT
+fi
+
+systemctl restart dnsmasq
+EOF
+
+sudo chmod +x /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
+```
+
+> **提示**：不要把 upstream 指向 `127.0.0.53`（systemd-resolved stub），否则会形成回环。
+
+#### 4. 配置 split DNS
+
+让 systemd-resolved 把 `homelab.com` 转发到 dnsmasq。通过 NetworkManager dispatcher 在网络 up 时自动配置：
+
+```bash
+sudo tee /etc/NetworkManager/dispatcher.d/99-homelab-dns > /dev/null << 'EOF'
+#!/bin/bash
+[[ "$2" != "up" ]] && exit 0
+resolvectl dns lo 127.0.0.1
+resolvectl domain lo "~homelab.com"
+EOF
+
+sudo chmod +x /etc/NetworkManager/dispatcher.d/99-homelab-dns
+```
+
+手动触发一次（或重启 NetworkManager）：
+
+```bash
+sudo /etc/NetworkManager/dispatcher.d/99-homelab-dns eth0 up
+```
+
+#### 5. 验证
+
+```bash
+# 检查 dnsmasq 监听
+ss -u -lpn | rg ':53'
+# 应看到 127.0.0.1:53
+
+# 检查 split DNS 配置
+resolvectl status
+# lo 应有 DNS Servers: 127.0.0.1 和 DNS Domain: ~homelab.com
+
+# 测试解析
+dig dozzle.homelab.com +short
+# 应返回 127.0.0.1
+
+# 测试 HTTP 访问
+curl -k https://dozzle.homelab.com
+```
+
+### WSL：NRPT + dnsmasq
 
 目标：Windows 只把 `*.homelab.com` 的解析转发到 WSL 内的 dnsmasq，不改动系统默认 DNS，也不影响 WSL 自己的上网解析。
 
@@ -167,18 +256,6 @@ keyFile = "/data/ssl/{{domain}}.pem.key"
    >
    > - NRPT 仅影响系统 DNS 解析器。若浏览器启用了 DoH，请改为系统解析器或关闭 DoH。
    > - 若 WSL IP 变化，需要重新添加 NRPT 规则。
-
-#### WSL：Windows hosts（备用）
-
-如果你不想启用 dnsmasq，可在 Windows `C:\Windows\System32\drivers\etc\hosts` 添加（IP 通过 `ip addr show eth0` 获取）：
-
-```plain
-<WSL_IP> traefik.<your-domain>
-<WSL_IP> dozzle.<your-domain>
-<WSL_IP> <other services>.<your-domain>
-```
-
-> 将 `<your-domain>` 替换为你的实际域名（如 `homelab.com`）
 
 ## 架构设计
 
