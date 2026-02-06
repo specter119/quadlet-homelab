@@ -131,6 +131,7 @@ Description=<Service> Stack
 WantedBy=default.target
 ```
 
+> [!NOTE]
 > `.target` 放在 `~/.config/systemd/user/`，不是 `containers/systemd/`。
 
 ### 容器间通信

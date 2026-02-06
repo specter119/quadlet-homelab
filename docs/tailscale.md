@@ -35,6 +35,15 @@
 - [Tailscale Admin Console](https://login.tailscale.com/admin) 访问权限
 - sudo 权限
 
+### 清理本机 split DNS 配置
+
+Tailscale 方案使用 `tailscale0` 接口做 split DNS，替换 traefik.md 中使用 `lo` 接口的方案。如果之前配置过，需要先清理：
+
+```bash
+sudo rm -f /etc/NetworkManager/dispatcher.d/99-homelab-dns
+sudo resolvectl revert lo 2>/dev/null || true
+```
+
 ## 配置步骤
 
 ### 1. 启动 Tailscale 并添加标签
@@ -79,39 +88,42 @@ sudo tailscale up --accept-dns=false --advertise-tags=tag:homelab
 在 [traefik.md](traefik.md) 的基础配置上，让 dnsmasq 额外监听 Tailscale IP，并返回 `$TS_IP`（而非 127.0.0.1）：
 
 ```bash
-# 更新 dnsmasq 配置
+# 更新 dnsmasq 配置（只用 listen-address，不要加 interface=tailscale0）
 sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << EOF
-interface=tailscale0
 listen-address=127.0.0.1,${TS_IP}
 bind-interfaces
 address=/.homelab.com/${TS_IP}
 EOF
 
+# dnsmasq 用了 bind-interfaces，必须在 tailscaled 之后启动，否则 ${TS_IP} 地址不存在会绑定失败
+sudo install -d /etc/systemd/system/dnsmasq.service.d
+sudo tee /etc/systemd/system/dnsmasq.service.d/override.conf > /dev/null << 'EOF'
+[Unit]
+After=tailscaled.service network-online.target
+Wants=network-online.target tailscaled.service
+EOF
+
+sudo systemctl daemon-reload
 sudo systemctl restart dnsmasq
 ```
 
-> **建议**：如果 `dnsmasq` 因为 `tailscale0` 尚未创建而启动失败，可用 systemd drop-in 增加依赖：
->
-> ```bash
-> sudo install -d /etc/systemd/system/dnsmasq.service.d
-> sudo tee /etc/systemd/system/dnsmasq.service.d/override.conf > /dev/null << 'EOF'
-> [Unit]
-> After=tailscaled.service network-online.target
-> Wants=network-online.target
-> Requires=tailscaled.service
-> EOF
->
-> sudo systemctl daemon-reload
-> sudo systemctl restart dnsmasq
-> ```
+> [!NOTE]
+> 这里用 `Wants`（而非 `Requires`），这样 tailscaled 重启时不会连带停止 dnsmasq，本机 DNS 解析不受影响。
 
-> **提示**：`/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
+> [!TIP]
+> `/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
 
 ### 3. 配置 tailscale0 的 split DNS
 
-让 systemd-resolved 把 `homelab.com` 通过 `tailscale0` 接口转发到 dnsmasq：
+让 systemd-resolved 把 `homelab.com` 通过 `tailscale0` 接口转发到 dnsmasq。
+
+`resolvectl` 设置的 per-link DNS 是运行时状态，其他接口的 DHCP 更新、NM 重配等 `dns-change` 事件都可能将其冲掉。需要两层保障：
+
+1. **ExecStartPost**：tailscaled 启动时初始配置
+2. **NM dispatcher**：DNS 变化时自动恢复
 
 ```bash
+# 1) tailscaled 启动时初始配置
 sudo install -d /etc/systemd/system/tailscaled.service.d
 sudo tee /etc/systemd/system/tailscaled.service.d/split-dns.conf > /dev/null << 'EOF'
 [Service]
@@ -121,20 +133,28 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl restart tailscaled
+
+# 2) DNS 变化时自动恢复（处理 dns-change 和 tailscale0 up 事件）
+sudo tee /etc/NetworkManager/dispatcher.d/99-tailscale-dns > /dev/null << 'EOF'
+#!/bin/bash
+# dns-change 事件没有接口参数，tailscale0 up 事件有
+[[ "$2" == "dns-change" || ("$1" == "tailscale0" && "$2" == "up") ]] || exit 0
+ip link show tailscale0 &>/dev/null || exit 0
+resolvectl dns tailscale0 127.0.0.1
+resolvectl domain tailscale0 "~homelab.com"
+EOF
+
+sudo chmod +x /etc/NetworkManager/dispatcher.d/99-tailscale-dns
 ```
 
-> **注意**：这会替换 traefik.md 中使用 `lo` 接口的 split DNS 配置。如果之前配置过，需要清理：
->
-> ```bash
-> sudo rm -f /etc/NetworkManager/dispatcher.d/99-homelab-dns
-> sudo resolvectl revert lo 2>/dev/null || true
-> ```
+> [!NOTE]
+> `tailscale0` 接口在 tailscaled 启动时就会创建（不需要等认证），所以 `ExecStartPost` 可以直接执行。dispatcher 负责在后续 DNS 配置被冲掉时自动恢复。
 
-验证 dnsmasq 监听：
+手动验证 split DNS 是否生效：
 
 ```bash
-ss -u -lpn | rg ':53'
-# 应看到 127.0.0.1:53 和 ${TS_IP}:53
+resolvectl status tailscale0
+# 应看到 DNS Servers: 127.0.0.1 和 DNS Domain: ~homelab.com
 ```
 
 ### 4. 配置 Tailscale Split DNS（Admin Console）
@@ -147,6 +167,7 @@ ss -u -lpn | rg ':53'
    - **Restrict to domain**: `homelab.com`
 5. 保存
 
+> [!NOTE]
 > 配置后，tailnet 内所有设备查询 `*.homelab.com` 时会自动转发到 homelab server 的 dnsmasq。
 
 ### 附录：FlClash 与 Tailscale 共存
@@ -246,10 +267,14 @@ resolvectl query dozzle.homelab.com
 
 ## 参考
 
-> **维护提示**：修改本文档前，先查阅以下官方链接验证配置是否过时。
+> [!IMPORTANT]
+> 修改本文档前，先查阅以下官方链接验证配置是否过时。
 
 - [Tailscale Split DNS](https://tailscale.com/kb/1054/dns)
 - [Split DNS Policies](https://tailscale.com/kb/1588/split-dns-policies)
 - [MagicDNS](https://tailscale.com/kb/1081/magicdns)
-- [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
+- [tailscaled(8)](https://man.archlinux.org/man/tailscaled.8.en)
+- [NetworkManager-dispatcher(8)](https://man.archlinux.org/man/NetworkManager-dispatcher.8.en)
 - [systemd-resolved(8)](https://man.archlinux.org/man/systemd-resolved.8.en)
+- [systemd.exec(5) - ExecStartPost](https://man.archlinux.org/man/systemd.service.5.en#COMMAND_LINES)
+- [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)

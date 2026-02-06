@@ -35,3 +35,6 @@ copyparty = '~/.config'
 
 [marimo.files]
 marimo = '~/.config'
+
+[suwayomi.files]
+suwayomi = '~/.config'

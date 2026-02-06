@@ -1,7 +1,5 @@
 # Traefik 配置指南
 
-> 官方文档: <https://doc.traefik.io/traefik/>
-
 ## 冷启动配置
 
 ### 低端口绑定
@@ -23,6 +21,7 @@ sysctl net.ipv4.ip_unprivileged_port_start
 # 输出应为 80
 ```
 
+> [!TIP]
 > **WSL 用户**：也可通过 `wsl --shutdown` 重启 WSL 使配置生效。
 
 ### SSL 证书初始化
@@ -90,25 +89,34 @@ sudo systemctl enable --now systemd-resolved
 sudo systemctl restart NetworkManager
 ```
 
-> **注意**：不要使用 NetworkManager 的 dnsmasq 插件（会导致容器 DNS 指向 127.0.0.1）。
+> [!WARNING]
+> 不要使用 NetworkManager 的 dnsmasq 插件（会导致容器 DNS 指向 127.0.0.1）。
 
 #### 2. 配置 dnsmasq
 
 ```bash
-# 启动系统 dnsmasq
-sudo systemctl enable --now dnsmasq
-
-# 写入配置
+# 写入 homelab 域名配置
 sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << 'EOF'
 listen-address=127.0.0.1
 bind-interfaces
 address=/.homelab.com/127.0.0.1
 EOF
 
-sudo systemctl restart dnsmasq
+# 写入初始上游 DNS（防止冷启动时 dnsmasq 读 /etc/resolv.conf 指向 127.0.0.53 形成回环）
+sudo tee /etc/dnsmasq.d/upstream.conf > /dev/null << 'EOF'
+no-resolv
+server=1.1.1.1
+EOF
+
+# 启动 dnsmasq
+sudo systemctl enable --now dnsmasq
 ```
 
-> **提示**：`/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
+> [!TIP]
+> `/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
+
+> [!NOTE]
+> `upstream.conf` 会在步骤 3 的 dispatcher 脚本触发后被动态覆盖为实际的上游 DNS。这里先写入一个安全的默认值，确保 dnsmasq 在 dispatcher 触发前不会回环。
 
 #### 3. 上游 DNS（动态写入）
 
@@ -137,13 +145,14 @@ server=1.1.1.1
 EOT
 fi
 
-systemctl restart dnsmasq
+systemctl restart --no-block dnsmasq
 EOF
 
 sudo chmod +x /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
 ```
 
-> **提示**：不要把 upstream 指向 `127.0.0.53`（systemd-resolved stub），否则会形成回环。
+> [!WARNING]
+> 不要把 upstream 指向 `127.0.0.53`（systemd-resolved stub），否则会形成回环。
 
 #### 4. 配置 split DNS
 
@@ -230,7 +239,8 @@ curl -k https://dozzle.homelab.com
    sudo systemctl enable --now dnsmasq
    ```
 
-   > **注意**：不要加 `interface=eth0`，只用 `listen-address` 即可。加了会导致 dnsmasq 尝试绑定 WSL 内置 DNS 地址（10.255.255.254）而失败。
+   > [!WARNING]
+   > 不要加 `interface=eth0`，只用 `listen-address` 即可。加了会导致 dnsmasq 尝试绑定 WSL 内置 DNS 地址（10.255.255.254）而失败。
 
 1. **Windows 管理员 PowerShell 添加 NRPT 规则**：
 
@@ -252,7 +262,7 @@ curl -k https://dozzle.homelab.com
    Get-DnsClientNrptRule | Where-Object { $_.Namespace -contains ".homelab.com" } | Remove-DnsClientNrptRule -Force
    ```
 
-   > 说明：
+   > [!NOTE]
    >
    > - NRPT 仅影响系统 DNS 解析器。若浏览器启用了 DoH，请改为系统解析器或关闭 DoH。
    > - 若 WSL IP 变化，需要重新添加 NRPT 规则。
@@ -278,7 +288,8 @@ curl -k https://dozzle.homelab.com
 └─────────────────────────────────────────────────────────────┘
 ```
 
-> **注**：`{{domain}}` 是 dotter 模板变量，可在 `.dotter/local.toml` 设置，例如 `homelab.com`。
+> [!NOTE]
+> `{{domain}}` 是 dotter 模板变量，可在 `.dotter/local.toml` 设置，例如 `homelab.com`。
 
 **设计原则**：
 
@@ -337,3 +348,17 @@ PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动
 | Garage S3  | `garage:3900`   | 直接通过业务子网访问 |
 
 详见 [docs/quadlet.md](quadlet.md#网络架构)。
+
+## 参考
+
+> [!IMPORTANT]
+> 修改本文档前，先查阅以下官方链接验证配置是否过时。
+
+- [Traefik Documentation](https://doc.traefik.io/traefik/)
+- [Traefik Docker Provider](https://doc.traefik.io/traefik/providers/docker/)
+- [Traefik File Provider](https://doc.traefik.io/traefik/providers/file/)
+- [NetworkManager.conf(5)](https://man.archlinux.org/man/NetworkManager.conf.5.en)
+- [NetworkManager-dispatcher(8)](https://man.archlinux.org/man/NetworkManager-dispatcher.8.en)
+- [systemd-resolved(8)](https://man.archlinux.org/man/systemd-resolved.8.en)
+- [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
+- [NRPT (Name Resolution Policy Table)](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/dn593632(v=ws.11))

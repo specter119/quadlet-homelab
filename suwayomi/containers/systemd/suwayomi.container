@@ -1,0 +1,48 @@
+[Unit]
+Description=Suwayomi - Manga Server
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+ExecStartPre=/usr/bin/mkdir -p %D/suwayomi/files %D/suwayomi/downloads
+Restart=always
+
+[Container]
+Image=ghcr.io/suwayomi/suwayomi-server:preview
+Pull=newer
+UserNS=keep-id
+Network=traefik.network
+
+Volume=%D/suwayomi/downloads:/home/suwayomi/.local/share/Tachidesk/downloads:Z
+Volume=%D/suwayomi/files:/home/suwayomi/.local/share/Tachidesk:Z
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.suwayomi-http.entrypoints=http
+Label=traefik.http.routers.suwayomi-http.middlewares=redir-https@file
+Label=traefik.http.routers.suwayomi-http.rule=Host(`suwayomi.{{domain}}`)
+Label=traefik.http.routers.suwayomi-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.suwayomi-https.entrypoints=https
+Label=traefik.http.routers.suwayomi-https.tls=true
+Label=traefik.http.routers.suwayomi-https.middlewares=gzip@file
+Label=traefik.http.routers.suwayomi-https.rule=Host(`suwayomi.{{domain}}`)
+Label=traefik.http.services.suwayomi.loadbalancer.server.port=4567
+
+[Install]
+WantedBy=default.target

@@ -2,7 +2,8 @@
 
 使用 **Podman Secret** 管理敏感配置，密钥存储在本地，不进 git。
 
-> **触发条件**：当 `.container` 文件中发现明文密码/密钥时，应提取到 `.dotter/secrets/<service>.conf`，改用 `Secret=` 引用。
+> [!IMPORTANT]
+> 当 `.container` 文件中发现明文密码/密钥时，应提取到 `.dotter/secrets/<service>.conf`，改用 `Secret=` 引用。
 
 ## 文件结构
 
@@ -16,7 +17,8 @@
 └── post_deploy.sh            # 部署后 daemon-reload
 ```
 
-> **为什么放在 `.dotter/secrets/`**：dotter 没有 ignore/exclude 机制。若放在各 service 目录，简单的目录映射会产生同名冲突或误部署。
+> [!NOTE]
+> dotter 没有 ignore/exclude 机制。若放在各 service 目录，简单的目录映射会产生同名冲突或误部署。
 
 ## secrets.conf 格式
 
