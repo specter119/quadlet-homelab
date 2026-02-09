@@ -1,3 +1,6 @@
+[helpers]
+contains = ".dotter/helpers/contains.rhai"
+
 [traefik.files]
 traefik = '~/.config'
 
@@ -18,14 +21,23 @@ type = 'template'
 [silverbullet.files]
 silverbullet = '~/.config'
 
+[langfuse]
+depends = ["postgres", "garage"]
+
 [langfuse.files]
 langfuse = '~/.config'
 
 [dozzle.files]
 dozzle = '~/.config'
 
+[omnivore]
+depends = ["postgres", "garage"]
+
 [omnivore.files]
 omnivore = '~/.config'
+
+[plane]
+depends = ["postgres", "garage"]
 
 [plane.files]
 plane = '~/.config'

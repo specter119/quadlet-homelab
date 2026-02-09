@@ -42,5 +42,7 @@ Label=traefik.http.routers.silverbullet-https.middlewares=gzip@file
 Label=traefik.http.routers.silverbullet-https.rule=Host(`silverbullet.{{domain}}`)
 Label=traefik.http.services.silverbullet.loadbalancer.server.port=3000
 
+{{#if (contains autostart_services "silverbullet")}}
 [Install]
 WantedBy=default.target
+{{/if}}

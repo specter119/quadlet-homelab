@@ -44,5 +44,7 @@ Label=traefik.http.routers.suwayomi-https.middlewares=gzip@file
 Label=traefik.http.routers.suwayomi-https.rule=Host(`suwayomi.{{domain}}`)
 Label=traefik.http.services.suwayomi.loadbalancer.server.port=4567
 
+{{#if (contains autostart_services "suwayomi")}}
 [Install]
 WantedBy=default.target
+{{/if}}

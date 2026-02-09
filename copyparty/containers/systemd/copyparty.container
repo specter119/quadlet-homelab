@@ -44,5 +44,7 @@ Label=traefik.http.routers.copyparty-https.middlewares=gzip@file
 Label=traefik.http.routers.copyparty-https.rule=Host(`copyparty.{{domain}}`)
 Label=traefik.http.services.copyparty.loadbalancer.server.port=3923
 
+{{#if (contains autostart_services "copyparty")}}
 [Install]
 WantedBy=default.target
+{{/if}}
