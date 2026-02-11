@@ -35,15 +35,6 @@
 - [Tailscale Admin Console](https://login.tailscale.com/admin) 访问权限
 - sudo 权限
 
-### 清理本机 split DNS 配置
-
-Tailscale 方案使用 `tailscale0` 接口做 split DNS，替换 traefik.md 中使用 `lo` 接口的方案。如果之前配置过，需要先清理：
-
-```bash
-sudo rm -f /etc/NetworkManager/dispatcher.d/99-homelab-dns
-sudo resolvectl revert lo 2>/dev/null || true
-```
-
 ## 配置步骤
 
 ### 1. 启动 Tailscale 并添加标签
@@ -113,51 +104,7 @@ sudo systemctl restart dnsmasq
 > [!TIP]
 > `/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
 
-### 3. 配置 tailscale0 的 split DNS
-
-让 systemd-resolved 把 `homelab.com` 通过 `tailscale0` 接口转发到 dnsmasq。
-
-`resolvectl` 设置的 per-link DNS 是运行时状态，其他接口的 DHCP 更新、NM 重配等 `dns-change` 事件都可能将其冲掉。需要两层保障：
-
-1. **ExecStartPost**：tailscaled 启动时初始配置
-2. **NM dispatcher**：DNS 变化时自动恢复
-
-```bash
-# 1) tailscaled 启动时初始配置
-sudo install -d /etc/systemd/system/tailscaled.service.d
-sudo tee /etc/systemd/system/tailscaled.service.d/split-dns.conf > /dev/null << 'EOF'
-[Service]
-ExecStartPost=/usr/bin/resolvectl dns tailscale0 127.0.0.1
-ExecStartPost=/usr/bin/resolvectl domain tailscale0 "~homelab.com"
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl restart tailscaled
-
-# 2) DNS 变化时自动恢复（处理 dns-change 和 tailscale0 up 事件）
-sudo tee /etc/NetworkManager/dispatcher.d/99-tailscale-dns > /dev/null << 'EOF'
-#!/bin/bash
-# dns-change 事件没有接口参数，tailscale0 up 事件有
-[[ "$2" == "dns-change" || ("$1" == "tailscale0" && "$2" == "up") ]] || exit 0
-ip link show tailscale0 &>/dev/null || exit 0
-resolvectl dns tailscale0 127.0.0.1
-resolvectl domain tailscale0 "~homelab.com"
-EOF
-
-sudo chmod +x /etc/NetworkManager/dispatcher.d/99-tailscale-dns
-```
-
-> [!NOTE]
-> `tailscale0` 接口在 tailscaled 启动时就会创建（不需要等认证），所以 `ExecStartPost` 可以直接执行。dispatcher 负责在后续 DNS 配置被冲掉时自动恢复。
-
-手动验证 split DNS 是否生效：
-
-```bash
-resolvectl status tailscale0
-# 应看到 DNS Servers: 127.0.0.1 和 DNS Domain: ~homelab.com
-```
-
-### 4. 配置 Tailscale Split DNS（Admin Console）
+### 3. 配置 Tailscale Split DNS（Admin Console）
 
 1. 打开 [Tailscale Admin Console](https://login.tailscale.com/admin/dns)
 2. 进入 **DNS** 页面
@@ -275,6 +222,4 @@ resolvectl query dozzle.homelab.com
 - [MagicDNS](https://tailscale.com/kb/1081/magicdns)
 - [tailscaled(8)](https://man.archlinux.org/man/tailscaled.8.en)
 - [NetworkManager-dispatcher(8)](https://man.archlinux.org/man/NetworkManager-dispatcher.8.en)
-- [systemd-resolved(8)](https://man.archlinux.org/man/systemd-resolved.8.en)
-- [systemd.exec(5) - ExecStartPost](https://man.archlinux.org/man/systemd.service.5.en#COMMAND_LINES)
 - [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
