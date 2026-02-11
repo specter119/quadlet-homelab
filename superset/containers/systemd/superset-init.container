@@ -1,0 +1,32 @@
+[Unit]
+Description=Superset database migration and initialization
+PartOf=superset.target
+Requires=superset-initdb.service
+After=superset-initdb.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+[Container]
+Image=docker.io/apache/superset:6.0.0-dev
+Network=superset.network
+
+Secret=superset-database-url,type=env,target=DATABASE_URL
+Secret=superset-secret-key,type=env,target=SECRET_KEY
+Secret=superset-admin-password,type=env,target=ADMIN_PASSWORD
+
+Volume=%h/.config/superset/superset_config.py:/app/pythonpath/superset_config.py:ro,Z
+
+Exec=sh -c "superset db upgrade && superset init && (superset fab list-users | grep -q admin || superset fab create-admin --username admin --firstname Admin --lastname Admin --email admin@admin.com --password \"$ADMIN_PASSWORD\")"
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+[Install]
+WantedBy=superset.target

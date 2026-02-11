@@ -48,5 +48,14 @@ copyparty = '~/.config'
 [marimo.files]
 marimo = '~/.config'
 
+[excalidraw.files]
+excalidraw = '~/.config'
+
 [suwayomi.files]
 suwayomi = '~/.config'
+
+[superset]
+depends = ["postgres"]
+
+[superset.files]
+superset = '~/.config'

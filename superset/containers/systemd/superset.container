@@ -1,0 +1,47 @@
+[Unit]
+Description=Apache Superset BI Platform
+PartOf=superset.target
+Requires=superset-init.service
+After=superset-init.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/apache/superset:6.0.0-dev
+Pull=newer
+Network=superset.network
+Network=traefik.network
+
+Secret=superset-database-url,type=env,target=DATABASE_URL
+Secret=superset-secret-key,type=env,target=SECRET_KEY
+
+Volume=%h/.config/superset/superset_config.py:/app/pythonpath/superset_config.py:ro,Z
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.superset-http.entrypoints=http
+Label=traefik.http.routers.superset-http.rule=Host(`superset.{{domain}}`)
+Label=traefik.http.routers.superset-http.middlewares=redir-https@file
+Label=traefik.http.routers.superset-http.service=noop@internal
+
+# HTTPS route
+Label=traefik.http.routers.superset-https.entrypoints=https
+Label=traefik.http.routers.superset-https.rule=Host(`superset.{{domain}}`)
+Label=traefik.http.routers.superset-https.tls=true
+Label=traefik.http.routers.superset-https.middlewares=gzip@file
+Label=traefik.http.services.superset.loadbalancer.server.port=8088
+
+[Install]
+WantedBy=superset.target

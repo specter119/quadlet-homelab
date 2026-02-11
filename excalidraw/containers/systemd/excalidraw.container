@@ -1,0 +1,42 @@
+[Unit]
+Description=Excalidraw MCP Canvas Server
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=ghcr.io/yctimlin/mcp_excalidraw-canvas:latest
+Pull=newer
+Network=traefik.network
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.excalidraw-http.entrypoints=http
+Label=traefik.http.routers.excalidraw-http.middlewares=redir-https@file
+Label=traefik.http.routers.excalidraw-http.rule=Host(`excalidraw.{{domain}}`)
+Label=traefik.http.routers.excalidraw-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.excalidraw-https.entrypoints=https
+Label=traefik.http.routers.excalidraw-https.tls=true
+Label=traefik.http.routers.excalidraw-https.middlewares=gzip@file
+Label=traefik.http.routers.excalidraw-https.rule=Host(`excalidraw.{{domain}}`)
+Label=traefik.http.services.excalidraw.loadbalancer.server.port=3000
+
+{{#if (contains autostart_services "excalidraw")}}
+[Install]
+WantedBy=default.target
+{{/if}}
