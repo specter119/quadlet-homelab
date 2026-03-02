@@ -156,24 +156,21 @@ sudo chmod +x /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
 
 #### 4. 配置 split DNS
 
-让 systemd-resolved 把 `homelab.com` 转发到 dnsmasq。通过 NetworkManager dispatcher 在网络 up 时自动配置：
+让 systemd-resolved 把 `homelab.com` 查询转发到 dnsmasq（127.0.0.1）。使用 resolved 的 drop-in 配置，将 `~homelab.com` 设为全局 routing domain：
 
 ```bash
-sudo tee /etc/NetworkManager/dispatcher.d/99-homelab-dns > /dev/null << 'EOF'
-#!/bin/bash
-[[ "$2" != "up" ]] && exit 0
-resolvectl dns lo 127.0.0.1
-resolvectl domain lo "~homelab.com"
+sudo install -d /etc/systemd/resolved.conf.d
+sudo tee /etc/systemd/resolved.conf.d/homelab.conf > /dev/null << 'EOF'
+[Resolve]
+DNS=127.0.0.1
+Domains=~homelab.com
 EOF
 
-sudo chmod +x /etc/NetworkManager/dispatcher.d/99-homelab-dns
+sudo systemctl restart systemd-resolved
 ```
 
-手动触发一次（或重启 NetworkManager）：
-
-```bash
-sudo /etc/NetworkManager/dispatcher.d/99-homelab-dns eth0 up
-```
+> [!NOTE]
+> `Domains=~homelab.com` 中的 `~` 前缀表示 routing domain：只有 `*.homelab.com` 查询会转发到 `DNS=127.0.0.1`（dnsmasq），其他域名走默认链路的 DNS 服务器。静态配置不会被 D-Bus 客户端覆盖，比 `resolvectl` 运行时状态更稳定。
 
 #### 5. 验证
 
@@ -183,8 +180,8 @@ ss -u -lpn | rg ':53'
 # 应看到 127.0.0.1:53
 
 # 检查 split DNS 配置
-resolvectl status
-# lo 应有 DNS Servers: 127.0.0.1 和 DNS Domain: ~homelab.com
+resolvectl status | head -10
+# Global 部分应有 DNS Servers: 127.0.0.1 和 DNS Domain: ~homelab.com
 
 # 测试解析
 dig dozzle.homelab.com +short
@@ -359,6 +356,7 @@ PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动
 - [Traefik File Provider](https://doc.traefik.io/traefik/providers/file/)
 - [NetworkManager.conf(5)](https://man.archlinux.org/man/NetworkManager.conf.5.en)
 - [NetworkManager-dispatcher(8)](https://man.archlinux.org/man/NetworkManager-dispatcher.8.en)
+- [resolved.conf(5)](https://man.archlinux.org/man/resolved.conf.5.en)
 - [systemd-resolved(8)](https://man.archlinux.org/man/systemd-resolved.8.en)
 - [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
 - [NRPT (Name Resolution Policy Table)](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/dn593632(v=ws.11))

@@ -62,6 +62,9 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
+\{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ=\{{command_output "timedatectl show -p Timezone --value"}}
+\{{/if}}
 Image=<image>
 # Pull=newer
 Network=traefik.network

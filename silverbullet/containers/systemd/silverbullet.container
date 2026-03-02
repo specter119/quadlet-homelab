@@ -9,13 +9,13 @@ DefaultDependencies=false
 
 {{/if}}
 [Service]
-{{#if (command_success "timedatectl show -p Timezone --value")}}
-Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
-{{/if}}
 Environment=PUID=1000
 Restart=always
 
 [Container]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
 NoNewPrivileges=true
 Image=ghcr.io/silverbulletmd/silverbullet
 Network=traefik.network
