@@ -167,6 +167,24 @@ Requires=garage.service
 After=garage.service
 ```
 
+### 依赖就绪门禁（排障）
+
+当遇到“依赖服务已启动，但应用仍连接失败”的冷启动时序问题（例如 `connection refused`）时，可尝试在 `[Service]` 增加 health gate：
+
+```ini
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2s
+ExecStartPre=/usr/bin/podman healthcheck run systemd-postgres
+```
+
+前提是被依赖服务已配置 `HealthCmd=`（例如 `postgres.container`）。
+
+> [!TIP]
+> 该做法适合 `initdb`、`migrate` 这类一次性初始化任务。若当前服务未出现就绪时序问题，可先保持现状。
+
 参考：
 
 - <https://hub.docker.com/_/postgres>

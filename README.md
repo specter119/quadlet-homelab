@@ -6,21 +6,21 @@
 
 ### 基础设施
 
-| 服务 | 说明 | 文档 |
-|------|------|------|
-| Tailscale | 远程访问 homelab（Split DNS） | [docs/tailscale.md](docs/tailscale.md) |
-| Traefik | 反向代理，统一域名访问，自动 HTTPS | [docs/traefik.md](docs/traefik.md) |
-| PostgreSQL | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 | - |
-| Garage | 共享 S3 存储，替代各服务独立的 MinIO | - |
-| Dozzle | 容器日志查看器 | - |
+| 服务       | 说明                                                   | 文档                                   |
+| ---------- | ------------------------------------------------------ | -------------------------------------- |
+| Tailscale  | 远程访问 homelab（Split DNS）                          | [docs/tailscale.md](docs/tailscale.md) |
+| Traefik    | 反向代理，统一域名访问，自动 HTTPS                     | [docs/traefik.md](docs/traefik.md)     |
+| PostgreSQL | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 | -                                      |
+| Garage     | 共享 S3 存储，替代各服务独立的 MinIO                   | -                                      |
+| Dozzle     | 容器日志查看器                                         | -                                      |
 
 ### 业务服务
 
-| 服务 | 说明 | 文档 |
-|------|------|------|
-| SilverBullet | 个人知识管理 | - |
-| Langfuse | LLM 应用可观测性 | - |
-| Omnivore | Read-it-later 阅读服务 | [docs/omnivore.md](docs/omnivore.md) |
+| 服务            | 说明                                | 文档                                               |
+| --------------- | ----------------------------------- | -------------------------------------------------- |
+| SilverBullet    | 个人知识管理                        | -                                                  |
+| Langfuse        | LLM 应用可观测性                    | -                                                  |
+| Omnivore        | Read-it-later 阅读服务 | [docs/omnivore.md](docs/omnivore.md) |
 | Plane | 项目管理 | - |
 | Copyparty | 文件共享服务 | - |
 | Marimo | Python 交互式 Notebook | - |
@@ -29,9 +29,9 @@
 
 ### 前置条件
 
-| 工具 | 用途 |
-|------|------|
-| podman | 容器运行时 |
+| 工具   | 用途                        |
+| ------ | --------------------------- |
+| podman | 容器运行时                  |
 | dotter | dotfiles 管理，部署配置文件 |
 
 ```bash
@@ -65,7 +65,6 @@ systemctl --user start <stack>.target     # 多容器服务栈
 ```bash
 dotter deploy           # 部署配置文件到目标位置
 dotter undeploy         # 移除已部署的配置文件
-dotter diff             # 查看本地与目标的差异
 dotter watch            # 监听文件变更自动部署
 ```
 
