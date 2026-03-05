@@ -11,6 +11,7 @@
 | docs/hooks.md       | pre/post_deploy 脚本、handlebars 转义                             |
 | docs/traefik.md     | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件        |
 | docs/tailscale.md   | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
+| docs/openfang.md    | OpenFang 本地部署：运行镜像、挂载目录、可选自定义挂载            |
 | docs/\<service\>.md | 特定业务服务的详细配置                                            |
 
 ### 内容归属原则

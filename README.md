@@ -24,6 +24,7 @@
 | Plane | 项目管理 | - |
 | Copyparty | 文件共享服务 | - |
 | Marimo | Python 交互式 Notebook | - |
+| OpenFang | 本地 OpenFang Agent 运行环境（复用宿主机 binary） | [docs/openfang.md](docs/openfang.md) |
 
 ## 快速开始
 

@@ -48,6 +48,9 @@ copyparty = '~/.config'
 [marimo.files]
 marimo = '~/.config'
 
+[openfang.files]
+openfang = '~/.config'
+
 [excalidraw.files]
 excalidraw = '~/.config'
 

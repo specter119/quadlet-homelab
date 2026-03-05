@@ -1,0 +1,27 @@
+FROM docker.io/library/debian:trixie
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        curl \
+        fd-find \
+        git \
+        iproute2 \
+        jq \
+        less \
+        procps \
+        ripgrep \
+        tini \
+        tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 -s /bin/bash openfang
+RUN mkdir -p /home/openfang/.local/bin \
+    && mkdir -p /home/openfang/.config \
+    && ln -sf /home/openfang/.local/bin/openfang /usr/local/bin/openfang \
+    && ln -sfn /home/openfang/.config/openfang /home/openfang/.openfang
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
