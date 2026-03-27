@@ -25,6 +25,7 @@
 | Copyparty | 文件共享服务 | - |
 | Marimo | Python 交互式 Notebook | - |
 | OpenFang | 本地 OpenFang Agent 运行环境（复用宿主机 binary） | [docs/openfang.md](docs/openfang.md) |
+| Unsloth | GPU Notebook / LLM 实验环境 | [docs/unsloth.md](docs/unsloth.md) |
 
 ## 快速开始
 

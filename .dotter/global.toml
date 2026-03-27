@@ -48,6 +48,9 @@ copyparty = '~/.config'
 [marimo.files]
 marimo = '~/.config'
 
+[unsloth.files]
+unsloth = '~/.config'
+
 [openfang.files]
 openfang = '~/.config'
 

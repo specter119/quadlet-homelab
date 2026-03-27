@@ -33,6 +33,7 @@ defaults = {
     "domain": '"homelab.com"',
     "autostart_services": "[]",
     "marimo_volumes": "[]",
+    "unsloth_volumes": "[]",
 }
 
 missing = {k: v for k, v in defaults.items() if k not in variables}

@@ -335,6 +335,32 @@ curl -k https://dozzle.homelab.com
 
 > 完整的 Quadlet 服务模板（包含 Labels）详见 [docs/quadlet.md](quadlet.md#单容器服务模板)
 
+## 单容器多服务配置
+
+当一个容器运行多个服务（如 Web UI + API），需要为每个服务配置独立的 router 和 service：
+
+```container
+# Web UI (主入口)
+Label=traefik.http.routers.myservice-web-https.rule=Host(`myservice.{{domain}}`)
+Label=traefik.http.routers.myservice-web-https.service=myservice-web@docker
+Label=traefik.http.services.myservice-web.loadbalancer.server.port=8000
+
+# API (子域名)
+Label=traefik.http.routers.myservice-api-https.rule=Host(`api.myservice.{{domain}}`)
+Label=traefik.http.routers.myservice-api-https.service=myservice-api@docker
+Label=traefik.http.services.myservice-api.loadbalancer.server.port=8888
+```
+
+> [!IMPORTANT]
+> 必须显式指定 `service=xxx@docker`，否则 Traefik 无法自动关联 router 和 service，报错：
+> `Router xxx cannot be linked automatically with multiple Services`
+
+**配置要点**：
+
+1. 每个服务定义独立的 `traefik.http.services.<name>.loadbalancer.server.port`
+2. 对应的 HTTPS router 必须指定 `service=<name>@docker`
+3. HTTP router 使用 `service=noop@internal`（仅做重定向）
+
 ## 共享基础设施访问
 
 PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动态加入依赖它们的业务子网，**不经过 Traefik 代理**。

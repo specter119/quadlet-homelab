@@ -1,0 +1,75 @@
+[Unit]
+Description=Unsloth Notebook Server
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Image=docker.io/unsloth/unsloth
+Pull=newer
+Network=traefik.network
+
+Secret=unsloth-jupyter-password,type=env,target=JUPYTER_PASSWORD
+
+# Persistent workspace
+Volume=%D/unsloth/work:/workspace/work:Z
+
+# Extra user-defined mounts
+{{#each unsloth_volumes}}
+Volume={{this}}
+{{/each}}
+
+# Enable GPU only when the host exposes NVIDIA devices at deploy time
+{{#if (command_success "command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1")}}
+PodmanArgs=--gpus all
+{{/if}}
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# Studio HTTP -> HTTPS redirect
+Label=traefik.http.routers.unsloth-studio-http.entrypoints=http
+Label=traefik.http.routers.unsloth-studio-http.middlewares=redir-https@file
+Label=traefik.http.routers.unsloth-studio-http.rule=Host(`unsloth.{{domain}}`)
+Label=traefik.http.routers.unsloth-studio-http.service=noop@internal
+
+# Studio HTTPS
+Label=traefik.http.routers.unsloth-studio-https.entrypoints=https
+Label=traefik.http.routers.unsloth-studio-https.tls=true
+Label=traefik.http.routers.unsloth-studio-https.middlewares=gzip@file
+Label=traefik.http.routers.unsloth-studio-https.rule=Host(`unsloth.{{domain}}`)
+Label=traefik.http.routers.unsloth-studio-https.service=unsloth-studio@docker
+Label=traefik.http.services.unsloth-studio.loadbalancer.server.port=8000
+
+# Jupyter HTTP -> HTTPS redirect
+Label=traefik.http.routers.unsloth-jupyter-http.entrypoints=http
+Label=traefik.http.routers.unsloth-jupyter-http.middlewares=redir-https@file
+Label=traefik.http.routers.unsloth-jupyter-http.rule=Host(`jupyterlab.unsloth.{{domain}}`)
+Label=traefik.http.routers.unsloth-jupyter-http.service=noop@internal
+
+# Jupyter HTTPS
+Label=traefik.http.routers.unsloth-jupyter-https.entrypoints=https
+Label=traefik.http.routers.unsloth-jupyter-https.tls=true
+Label=traefik.http.routers.unsloth-jupyter-https.middlewares=gzip@file
+Label=traefik.http.routers.unsloth-jupyter-https.rule=Host(`jupyterlab.unsloth.{{domain}}`)
+Label=traefik.http.routers.unsloth-jupyter-https.service=unsloth-jupyter@docker
+Label=traefik.http.services.unsloth-jupyter.loadbalancer.server.port=8888
+
+{{#if (contains autostart_services "unsloth")}}
+[Install]
+WantedBy=default.target
+{{/if}}
