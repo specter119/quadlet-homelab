@@ -60,6 +60,9 @@ excalidraw = '~/.config'
 [suwayomi.files]
 suwayomi = '~/.config'
 
+[lunatv.files]
+lunatv = '~/.config'
+
 [superset]
 depends = ["postgres"]
 

@@ -1,0 +1,24 @@
+[Unit]
+Description=LunaTV Kvrocks Storage
+PartOf=lunatv.target
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/apache/kvrocks:latest
+Pull=newer
+Network=lunatv.network
+NetworkAlias=kvrocks
+Volume=lunatv-kvrocks-data.volume:/var/lib/kvrocks/db:Z
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+[Install]
+WantedBy=lunatv.target

@@ -1,0 +1,55 @@
+[Unit]
+Description=LunaTV Streaming Service
+PartOf=lunatv.target
+After=traefik.service lunatv-kvrocks.service
+Wants=traefik.service
+Requires=lunatv-kvrocks.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Image=ghcr.io/moontechlab/lunatv:latest
+Pull=newer
+Network=lunatv.network
+Network=traefik.network
+
+Environment=USERNAME=admin
+Environment=NEXT_PUBLIC_STORAGE_TYPE=kvrocks
+Environment=KVROCKS_URL=redis://kvrocks:6666
+Environment=SITE_BASE=https://lunatv.{{domain}}
+Environment=NEXT_PUBLIC_SITE_NAME=LunaTV
+Environment=NEXT_PUBLIC_DOUBAN_PROXY_TYPE=cmliussss-cdn-tencent
+Environment=NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE=cmliussss-cdn-tencent
+Secret=lunatv-password,type=env,target=PASSWORD
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.lunatv-http.entrypoints=http
+Label=traefik.http.routers.lunatv-http.middlewares=redir-https@file
+Label=traefik.http.routers.lunatv-http.rule=Host(`lunatv.{{domain}}`)
+Label=traefik.http.routers.lunatv-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.lunatv-https.entrypoints=https
+Label=traefik.http.routers.lunatv-https.tls=true
+Label=traefik.http.routers.lunatv-https.middlewares=gzip@file
+Label=traefik.http.routers.lunatv-https.rule=Host(`lunatv.{{domain}}`)
+Label=traefik.http.services.lunatv.loadbalancer.server.port=3000
+
+[Install]
+WantedBy=lunatv.target
