@@ -51,7 +51,9 @@ git clone <repo-url>
 cd quadlet-homelab
 
 # 2. 创建 dotter 本地配置
-dotter init  # 按提示配置，设置 domain 变量
+dotter init  # 按提示生成 .dotter/local.toml
+
+# 2.1 按 docs/dotter.md 调整本机变量（如 domain、autostart_services）
 
 # 3. 配置 Traefik（SSL 证书、低端口绑定、域名解析）
 # 详见 docs/traefik.md
@@ -91,6 +93,7 @@ podman quadlet list
 ```
 
 更多 Quadlet 配置细节见 [AGENTS.md](./AGENTS.md)。
+Dotter 变量规则见 [docs/dotter.md](docs/dotter.md)。
 
 ## 参考文档
 

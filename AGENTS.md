@@ -6,6 +6,7 @@
 | ------------------- | ----------------------------------------------------------------- |
 | README.md           | 用户入门：项目简介、服务列表、冷启动、常用命令                    |
 | AGENTS.md           | 文档索引、内容归属、维护规范、写作规范、新建服务检查清单          |
+| docs/dotter.md      | Dotter 变量契约、覆盖规则、共享/私有变量约定                     |
 | docs/quadlet.md     | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
 | docs/secrets.md     | Secrets 格式定义、一致性检查                                      |
 | docs/hooks.md       | pre/post_deploy 脚本、handlebars 转义                             |
@@ -31,6 +32,13 @@
 1. 检查文档末尾「参考」章节的官方链接
 2. 对比本地配置与官方最新推荐
 3. 移除已废弃的配置方式，只保留当前推荐做法
+
+## 版本控制约定
+
+- 默认分支保持为仓库的单一真实状态，原则上直接收敛到 default branch，不长期保留额外 branch/bookmark
+- 只有在需要验证某个 package 的新实现或隔离高风险实验时，才临时创建 branch/bookmark
+- 实验结束后应尽快合并回 default branch，并删除多余 branch/bookmark
+- 删除服务时，按 package 维度清理对应配置、文档、secrets、systemd/containers 文件，避免遗留半套状态
 
 ### 文档写作规范
 

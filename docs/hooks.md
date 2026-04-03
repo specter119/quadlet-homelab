@@ -19,6 +19,9 @@ podman secret ls --format '\{{.Name}}'
 - `pre_deploy.sh`：初始化 Podman secrets（读取 `.dotter/secrets/*.conf`）
 - `post_deploy.sh`：`systemctl --user daemon-reload`
 
+> [!NOTE]
+> hook 脚本不负责补写 Dotter 变量默认值。变量来源、覆盖规则与 namespaced table 约定统一见 [docs/dotter.md](dotter.md)。
+
 ## 参考
 
 - [dotter 文档](https://github.com/SuperCuber/dotter)

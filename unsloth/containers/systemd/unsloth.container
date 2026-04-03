@@ -25,7 +25,7 @@ Secret=unsloth-jupyter-password,type=env,target=JUPYTER_PASSWORD
 Volume=%D/unsloth/work:/workspace/work:Z
 
 # Extra user-defined mounts
-{{#each unsloth_volumes}}
+{{#each unsloth.volumes}}
 Volume={{this}}
 {{/each}}
 

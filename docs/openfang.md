@@ -29,11 +29,11 @@ systemctl --user restart openfang-prepare.service
 
 ## 额外挂载（可选）
 
-通过 `openfang_volumes` 添加额外挂载，格式与 marimo 一致：
+通过 `openfang.volumes` 添加额外挂载，格式与 marimo 一致：
 
 ```toml
-[variables]
-openfang_volumes = [
+[variables.openfang]
+volumes = [
   "/path/to/data:/data:ro",
   "/path/to/workdir:/workspace:Z",
 ]
@@ -59,3 +59,7 @@ sed -i '/^TELEGRAM_BOT_TOKEN=/d' ~/.config/openfang/secrets.env
 systemctl --user reset-failed openfang.service
 systemctl --user restart openfang.service
 ```
+
+## 参考
+
+- <https://github.com/RightNow-AI/openfang>

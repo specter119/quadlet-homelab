@@ -100,6 +100,7 @@ WantedBy=default.target
 - `<service>`: 服务名，如 `dozzle`, `silverbullet`
 - `<port>`: 容器内部端口，如 `8080`, `3000`
 - `DefaultDependencies=false`: 仅在 WSL 环境下添加，禁用 Quadlet 默认的网络依赖避免启动超时
+- `domain`: Dotter 共享变量，默认值与本机覆盖规则见 [docs/dotter.md](dotter.md)
 - `autostart_services`: 自启动服务列表，在 `.dotter/local.toml` 的 `[variables]` 中设置，使用自定义 `contains` helper 判断
 - `redir-https@file`, `gzip@file`: 引用 `middlewares.toml` 中定义的共享中间件
 - `noop@internal`: Traefik 内置空服务，用于重定向场景

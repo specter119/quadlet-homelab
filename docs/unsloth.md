@@ -37,8 +37,8 @@ podman secret inspect unsloth-jupyter-password --showsecret --format '{{.SecretD
 若还需要额外挂载数据目录：
 
 ```toml
-[variables]
-unsloth_volumes = [
+[variables.unsloth]
+volumes = [
   "/path/to/models:/models:ro",
   "/path/to/datasets:/datasets:ro",
 ]

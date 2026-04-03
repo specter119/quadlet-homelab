@@ -32,8 +32,8 @@ Volume=%h/.local:/home/openfang/.local:Z
 Volume=%h/.config:/home/openfang/.config:Z
 Volume=%h/.cache:/home/openfang/.cache:Z
 
-# Extra user-defined mounts (same pattern as marimo_volumes)
-{{#each openfang_volumes}}
+# Extra user-defined mounts
+{{#each openfang.volumes}}
 Volume={{this}}
 {{/each}}
 

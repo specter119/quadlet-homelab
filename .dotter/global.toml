@@ -8,6 +8,9 @@ traefik = '~/.config'
 target = '~/.config/traefik'
 type = 'template'
 
+[traefik.variables]
+domain = "homelab.com"
+
 [postgres.files]
 postgres = '~/.config'
 
@@ -48,6 +51,9 @@ copyparty = '~/.config'
 [marimo.files]
 marimo = '~/.config'
 
+[marimo.variables.marimo]
+volumes = []
+
 [multica]
 depends = ["postgres"]
 
@@ -57,8 +63,14 @@ multica = '~/.config'
 [unsloth.files]
 unsloth = '~/.config'
 
+[unsloth.variables.unsloth]
+volumes = []
+
 [openfang.files]
 openfang = '~/.config'
+
+[openfang.variables.openfang]
+volumes = []
 
 [excalidraw.files]
 excalidraw = '~/.config'
