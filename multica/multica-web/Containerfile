@@ -6,7 +6,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
-RUN pnpm install --frozen-lockfile
+RUN node -e 'const fs=require("fs"); const path="apps/web/package.json"; const pkg=JSON.parse(fs.readFileSync(path,"utf8")); pkg.dependencies ||= {}; Object.assign(pkg.dependencies, {"@tiptap/core":"^3.20.5","@tiptap/extension-document":"^3.20.5","@tiptap/extension-paragraph":"^3.20.5","@tiptap/extension-text":"^3.20.5","@tiptap/suggestion":"^3.20.5","dotenv":"^17.2.3","marked":"^16.4.1"}); fs.writeFileSync(path, JSON.stringify(pkg, null, 2));'
+RUN pnpm install --no-frozen-lockfile
 
 COPY . .
 

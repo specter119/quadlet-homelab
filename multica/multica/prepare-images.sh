@@ -4,10 +4,12 @@ set -euo pipefail
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/multica"
 src_dir="$cache_dir/src"
 ref_file="$cache_dir/main.ref"
+signature_file="$cache_dir/build.signature"
 upstream_repo="https://github.com/multica-ai/multica.git"
 upstream_branch="main"
 server_image="localhost/multica-server:main"
 web_image="localhost/multica-web:main"
+server_containerfile="${XDG_CONFIG_HOME:-$HOME/.config}/multica-server/Containerfile"
 web_containerfile="${XDG_CONFIG_HOME:-$HOME/.config}/multica-web/Containerfile"
 
 mkdir -p "$cache_dir"
@@ -23,6 +25,16 @@ current_ref=""
 if [[ -f "$ref_file" ]]; then
   current_ref="$(<"$ref_file")"
 fi
+
+current_signature=""
+if [[ -f "$signature_file" ]]; then
+  current_signature="$(<"$signature_file")"
+fi
+
+desired_signature="$(
+  printf '%s\n' "${upstream_ref:-$current_ref}" &&
+    sha256sum "$server_containerfile" "$web_containerfile"
+)"
 
 if [[ -e "$src_dir" && ! -d "$src_dir/.git" ]]; then
   rm -rf "$src_dir"
@@ -57,11 +69,18 @@ elif ! podman image exists "$server_image"; then
   build_required=true
 elif ! podman image exists "$web_image"; then
   build_required=true
+elif [[ "$current_signature" != "$desired_signature" ]]; then
+  build_required=true
 fi
 
 if [[ "$build_required" == true ]]; then
   echo "[multica-prepare] building $server_image"
-  podman build -t "$server_image" -f "$src_dir/Dockerfile" "$src_dir"
+  podman build \
+    --build-arg GOPROXY=https://goproxy.cn,direct \
+    --build-arg GOSUMDB=sum.golang.google.cn \
+    -t "$server_image" \
+    -f "$server_containerfile" \
+    "$src_dir"
 
   echo "[multica-prepare] building $web_image"
   podman build \
@@ -76,3 +95,5 @@ if [[ -n "$upstream_ref" ]]; then
 elif [[ -d "$src_dir/.git" ]]; then
   git -C "$src_dir" rev-parse HEAD >"$ref_file"
 fi
+
+printf '%s\n' "$desired_signature" >"$signature_file"
