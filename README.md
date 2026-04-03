@@ -27,6 +27,7 @@
 | LunaTV | 影视聚合播放器 | [docs/lunatv.md](docs/lunatv.md) |
 | OpenFang | 本地 OpenFang Agent 运行环境（复用宿主机 binary） | [docs/openfang.md](docs/openfang.md) |
 | Unsloth | GPU Notebook / LLM 实验环境 | [docs/unsloth.md](docs/unsloth.md) |
+| Multica | AI Agent 协作看板与 Runtime 管理平台 | [docs/multica.md](docs/multica.md) |
 
 ## 快速开始
 

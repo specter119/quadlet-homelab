@@ -48,6 +48,12 @@ copyparty = '~/.config'
 [marimo.files]
 marimo = '~/.config'
 
+[multica]
+depends = ["postgres"]
+
+[multica.files]
+multica = '~/.config'
+
 [unsloth.files]
 unsloth = '~/.config'
 

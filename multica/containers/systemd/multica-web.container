@@ -1,0 +1,47 @@
+[Unit]
+Description=Multica Web Frontend
+PartOf=multica.target
+After=multica-prepare.service multica-api.service
+Requires=multica-prepare.service multica-api.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=localhost/multica-web:main
+Pull=never
+Network=multica.network
+Network=traefik.network
+
+Environment=FRONTEND_PORT=3000
+Environment=NODE_ENV=production
+Exec=sh -lc 'cd /app/apps/web && exec pnpm exec next start --hostname 0.0.0.0 --port "${FRONTEND_PORT:-3000}"'
+HealthCmd=wget -q -O /dev/null http://127.0.0.1:3000/
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.multica-http.entrypoints=http
+Label=traefik.http.routers.multica-http.rule=Host(`multica.{{domain}}`)
+Label=traefik.http.routers.multica-http.middlewares=redir-https@file
+Label=traefik.http.routers.multica-http.service=noop@internal
+
+# HTTPS route
+Label=traefik.http.routers.multica-https.entrypoints=https
+Label=traefik.http.routers.multica-https.rule=Host(`multica.{{domain}}`)
+Label=traefik.http.routers.multica-https.tls=true
+Label=traefik.http.routers.multica-https.middlewares=gzip@file
+Label=traefik.http.services.multica.loadbalancer.server.port=3000
+
+[Install]
+WantedBy=multica.target

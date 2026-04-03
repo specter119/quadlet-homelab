@@ -1,0 +1,35 @@
+[Unit]
+Description=Multica API Server
+PartOf=multica.target
+After=postgres.service multica-prepare.service multica-migrate.service
+Requires=postgres.service multica-prepare.service multica-migrate.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=localhost/multica-server:main
+Pull=never
+Network=multica.network
+NetworkAlias=api
+
+Secret=multica-database-url,type=env,target=DATABASE_URL
+Secret=multica-jwt-secret,type=env,target=JWT_SECRET
+
+Environment=PORT=8080
+Environment=FRONTEND_ORIGIN=https://multica.{{domain}}
+Environment=CORS_ALLOWED_ORIGINS=https://multica.{{domain}}
+Environment=MULTICA_APP_URL=https://multica.{{domain}}
+Environment=MULTICA_SERVER_URL=wss://multica.{{domain}}/ws
+HealthCmd=wget -q -O /dev/null http://127.0.0.1:8080/health
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+[Install]
+WantedBy=multica.target

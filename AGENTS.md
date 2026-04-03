@@ -12,6 +12,7 @@
 | docs/traefik.md     | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件        |
 | docs/tailscale.md   | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
 | docs/openfang.md    | OpenFang 本地部署：运行镜像、挂载目录、可选自定义挂载            |
+| docs/multica.md     | Multica 本地部署：源码构建、共享 PostgreSQL、登录方式            |
 | docs/\<service\>.md | 特定业务服务的详细配置                                            |
 
 ### 内容归属原则
