@@ -81,6 +81,9 @@ suwayomi = '~/.config'
 [lunatv.files]
 lunatv = '~/.config'
 
+[cliproxyapi.files]
+cliproxyapi = '~/.config'
+
 [superset]
 depends = ["postgres"]
 
