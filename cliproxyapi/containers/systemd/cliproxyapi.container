@@ -21,7 +21,7 @@ Pull=newer
 Network=traefik.network
 
 # Config and data mounts
-Volume=%E/cliproxyapi/config.yaml:/CLIProxyAPI/config.yaml:Z,ro
+Volume=%E/cliproxyapi/config.yaml:/CLIProxyAPI/config.yaml:Z
 Volume=cliproxyapi-auth:/root/.cli-proxy-api
 
 # Dozzle group
