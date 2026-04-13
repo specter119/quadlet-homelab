@@ -72,6 +72,9 @@ openfang = '~/.config'
 [openfang.variables.openfang]
 volumes = []
 
+[nowledge-mem.files]
+nowledge-mem = '~/.config'
+
 [excalidraw.files]
 excalidraw = '~/.config'
 

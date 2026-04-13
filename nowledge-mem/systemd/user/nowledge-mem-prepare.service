@@ -1,0 +1,7 @@
+[Unit]
+Description=Prepare Nowledge Mem runtime image
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash %E/nowledge-mem/prepare-image.sh

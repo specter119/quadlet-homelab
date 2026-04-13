@@ -1,0 +1,64 @@
+[Unit]
+Description=Nowledge Mem Headless Server
+After=traefik.service
+Wants=traefik.service
+Requires=nowledge-mem-prepare.service
+After=nowledge-mem-prepare.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Image=localhost/nowledge-mem-runtime:trixie
+Pull=never
+UserNS=keep-id
+NoNewPrivileges=true
+Network=traefik.network
+
+Environment=HOME=/home/nowledge
+Environment=XDG_CONFIG_HOME=/home/nowledge/.config
+Environment=XDG_DATA_HOME=/home/nowledge/.local/share
+Environment=XDG_CACHE_HOME=/home/nowledge/.cache
+
+Volume=%h/.config/co.nowledge.mem.desktop:/home/nowledge/.config/co.nowledge.mem.desktop:Z
+Volume=%h/.local/share/NowledgeGraph:/home/nowledge/.local/share/NowledgeGraph:Z
+Volume=%h/.cache/nowledge-graph:/home/nowledge/.cache/nowledge-graph:Z
+
+Exec=nmem serve --host 0.0.0.0 --port 14242
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.nowledge-mem-http.entrypoints=http
+Label=traefik.http.routers.nowledge-mem-http.middlewares=redir-https@file
+Label=traefik.http.routers.nowledge-mem-http.rule=Host(`nowledge-mem.{{domain}}`)
+Label=traefik.http.routers.nowledge-mem-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.nowledge-mem-https.entrypoints=https
+Label=traefik.http.routers.nowledge-mem-https.tls=true
+Label=traefik.http.routers.nowledge-mem-https.middlewares=gzip@file,nowledge-mem-root@docker
+Label=traefik.http.routers.nowledge-mem-https.rule=Host(`nowledge-mem.{{domain}}`)
+Label=traefik.http.services.nowledge-mem.loadbalancer.server.port=14242
+
+# Redirect the bare host to the web app entrypoint.
+Label=traefik.http.middlewares.nowledge-mem-root.replacepathregex.regex=^/$
+Label=traefik.http.middlewares.nowledge-mem-root.replacepathregex.replacement=/app
+
+{{#if (contains autostart_services "nowledge-mem")}}
+[Install]
+WantedBy=default.target
+{{/if}}
