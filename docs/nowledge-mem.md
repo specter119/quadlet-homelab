@@ -10,6 +10,7 @@
   - `~/.config/co.nowledge.mem.desktop`
   - `~/.local/share/NowledgeGraph`
   - `~/.cache/nowledge-graph`
+  - `~/.cache/huggingface/hub`
 
 ## 镜像构建
 
@@ -101,7 +102,8 @@ podman exec -it systemd-nowledge-mem nmem key
 ```
 
 > [!IMPORTANT]
-> 数据库和搜索索引默认位于 `~/.local/share/NowledgeGraph`。不要只保留配置目录，否则容器重建后会丢失记忆数据。
+> 数据库和搜索索引默认位于 `~/.local/share/NowledgeGraph`，嵌入模型缓存当前位于 `~/.cache/huggingface/hub`。
+> 不要只保留配置目录，否则容器重建后会丢失记忆数据，且 `bge-m3` 之类的模型会被重新下载。
 
 ## 参考
 

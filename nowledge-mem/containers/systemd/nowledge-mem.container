@@ -31,6 +31,7 @@ Environment=XDG_CACHE_HOME=/home/nowledge/.cache
 Volume=%h/.config/co.nowledge.mem.desktop:/home/nowledge/.config/co.nowledge.mem.desktop:Z
 Volume=%h/.local/share/NowledgeGraph:/home/nowledge/.local/share/NowledgeGraph:Z
 Volume=%h/.cache/nowledge-graph:/home/nowledge/.cache/nowledge-graph:Z
+Volume=%h/.cache/huggingface/hub:/home/nowledge/.cache/huggingface/hub:Z
 
 Exec=nmem serve --host 0.0.0.0 --port 14242
 
