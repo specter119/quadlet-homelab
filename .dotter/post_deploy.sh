@@ -20,3 +20,10 @@ if [[ -f "$sync_service_file" ]]; then
         systemctl --user start "$sync_service_unit"
     fi
 fi
+
+update_timer_unit="nowledge-mem-check-update.timer"
+update_timer_file="$HOME/.config/systemd/user/${update_timer_unit}"
+
+if [[ -f "$update_timer_file" ]]; then
+    systemctl --user enable --now "$update_timer_unit"
+fi

@@ -46,6 +46,23 @@ systemctl --user restart nowledge-mem-prepare.service
 systemctl --user restart nowledge-mem.service
 ```
 
+## 自动更新
+
+`nowledge-mem-check-update.timer` 每天检查 APT 仓库是否有新版本。检测到新包时自动重建镜像并打上版本 tag，保留最近两个版本 tag 便于回退。
+
+新镜像在下次 `systemctl --user restart nowledge-mem.service` 时生效，不会自动重启服务。
+
+手动触发一次检查：
+
+```bash
+systemctl --user start nowledge-mem-check-update.service
+journalctl --user -u nowledge-mem-check-update.service --no-pager -n 20
+```
+
+> [!NOTE]
+> 检查基于 APT 仓库 (`download-mem.nowledge.co`) 的实际包版本，而非 `nmem update check` 报告的上游版本。
+> APT 发布可能滞后于上游公告。
+
 ## 初始化步骤
 
 启动服务：
