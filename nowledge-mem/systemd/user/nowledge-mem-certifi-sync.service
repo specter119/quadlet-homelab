@@ -1,0 +1,12 @@
+[Unit]
+Description=Sync Nowledge Mem TLS chain into host nmem-cli certifi bundle
+Wants=nowledge-mem.service
+After=nowledge-mem.service
+
+[Service]
+Type=oneshot
+Environment=NMEM_CERT_HOST=nowledge-mem.{{domain}}
+ExecStart=/usr/bin/bash %E/nowledge-mem/sync-certifi.sh
+
+[Install]
+WantedBy=nowledge-mem.service

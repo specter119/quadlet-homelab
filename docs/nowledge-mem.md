@@ -22,6 +22,21 @@ apt-get install -y nowledge-mem
 
 首次启动 `nowledge-mem.service` 前，会先由 `nowledge-mem-prepare.service` 构建本地镜像。
 
+若宿主机使用 `uv` 安装的 `nmem-cli`，仓库还会部署一个用户级 watcher：
+
+- `nowledge-mem-certifi-sync.path`
+- `nowledge-mem-certifi-sync.service`
+
+它们现在作为 `nowledge-mem` 的一部分一起部署：
+
+- `dotter deploy` 后会自动 `enable --now nowledge-mem-certifi-sync.path`
+- 若 `nowledge-mem.service` 当时已在运行，会立刻触发一次 `nowledge-mem-certifi-sync.service`
+- 后续每次 `nowledge-mem.service` 启动时，也会补跑一次同步
+- 若检测到 `~/.local/share/uv/tools/nmem-cli/uv-receipt.toml` 变化，也会再次同步
+
+同步逻辑会把 `https://nowledge-mem.<domain>` 当前返回的证书链补进该 tool 环境的
+`certifi` bundle，避免 `nmem status` 因自签名证书报 `CERTIFICATE_VERIFY_FAILED`。
+
 需要强制重建并拉取新版包时：
 
 ```bash
@@ -67,6 +82,12 @@ podman exec -it systemd-nowledge-mem nmem config provider test
 
 ```bash
 podman exec -it systemd-nowledge-mem nmem key --show-login
+```
+
+如果宿主机的 `nmem status` 仍然报证书错误，可手动触发一次同步：
+
+```bash
+systemctl --user start nowledge-mem-certifi-sync.service
 ```
 
 ## 远程访问

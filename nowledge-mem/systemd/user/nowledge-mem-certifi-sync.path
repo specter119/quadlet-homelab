@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch host nmem-cli installation for certifi sync
+
+[Path]
+PathChanged=%h/.local/share/uv/tools/nmem-cli/uv-receipt.toml
+Unit=nowledge-mem-certifi-sync.service
+
+[Install]
+WantedBy=default.target
