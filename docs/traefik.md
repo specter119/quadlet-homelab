@@ -26,36 +26,60 @@ sysctl net.ipv4.ip_unprivileged_port_start
 
 ### SSL 证书初始化
 
-使用 [certs-maker](https://github.com/soulteary/certs-maker) 生成自签名泛域名证书（以你的 domain 为例）：
+证书有两条路线：
 
-```bash
-# 创建证书目录
-mkdir -p ~/.local/state/traefik/ssl
+- **稳定使用**：用 [mkcert](https://github.com/FiloSottile/mkcert) 在浏览器所在 host 上安装本地 Root CA，再签发 `*.{{domain}}` 的 server cert。
+- **快速尝试**：用 `certs-maker` 直接生成自签 wildcard 证书，适合先跑通服务，但 Firefox/Chrome 的信任行为需要单独验证。
 
-# 设置域名（与 .dotter/local.toml 中的 domain 一致）
-DOMAIN=homelab.com  # 或 worklab.com
+> 详细差异和 Windows/Linux 分支见 [docs/browser-trust.md](browser-trust.md)。
 
-# 生成泛域名证书（有效期 10 年）
-podman run --rm \
-  -v ~/.local/state/traefik/ssl:/ssl \
-  docker.io/soulteary/certs-maker \
-  "--CERT_DNS=${DOMAIN},*.${DOMAIN}"
+稳定方案的最小流程：
 
-# 验证证书
-openssl x509 -in ~/.local/state/traefik/ssl/${DOMAIN}.pem.crt -text -noout
-```
+1. **浏览器所在 host：安装本地 Root CA**
 
-配置 `traefik/certs.toml`（dotter 会自动替换 `{{domain}}`）：
+   ```powershell
+   mkcert -install
+   ```
 
-```toml
-[tls.stores.default.defaultCertificate]
-certFile = "/data/ssl/{{domain}}.pem.crt"
-keyFile = "/data/ssl/{{domain}}.pem.key"
+1. **浏览器所在 host：签发 wildcard server cert**
 
-[[tls.certificates]]
-certFile = "/data/ssl/{{domain}}.pem.crt"
-keyFile = "/data/ssl/{{domain}}.pem.key"
-```
+   ```bash
+   mkcert worklab.com "*.worklab.com"
+   ```
+
+1. **Traefik 所在 Linux/WSL：放置 leaf cert/key**
+
+   将生成的 server cert/key 放到：
+
+   - `~/.local/state/traefik/ssl/<domain>.pem.crt`
+   - `~/.local/state/traefik/ssl/<domain>.pem.key`
+
+   例如当前 `domain = "worklab.com"` 时，Traefik 读取：
+
+   - `~/.local/state/traefik/ssl/worklab.com.pem.crt`
+   - `~/.local/state/traefik/ssl/worklab.com.pem.key`
+
+1. **Linux/WSL：重启 Traefik**
+
+   ```bash
+   systemctl --user restart traefik.service
+   ```
+
+1. **验证**
+
+   ```bash
+   openssl s_client -connect 127.0.0.1:443 -servername dozzle.worklab.com -showcerts </dev/null 2>/dev/null \
+     | openssl x509 -noout -subject -issuer -dates -ext subjectAltName -ext basicConstraints
+   ```
+
+   预期结果：
+
+   - `issuer` 是 `mkcert development CA`
+   - `subjectAltName` 包含 `worklab.com` 和 `*.worklab.com`
+   - leaf cert 是服务端证书，不是旧快速方案里的 `CA:TRUE` 自签站点证书
+
+> [!NOTE]
+> Firefox 若仍不信任，Windows 检查 `about:config` 中的 `security.enterprise_roots.enabled`，Linux 先确认 `certutil` 存在。Chrome 若只有某个站点仍显示 Not secure，优先清理该站点的 site data / service worker / socket cache。
 
 ## 域名解析配置
 
@@ -293,7 +317,7 @@ curl -k https://dozzle.homelab.com
 - Traefik Dashboard: 使用 File Provider 定义路由
 - 其他服务: 使用 Container Labels，配置与服务绑定，易于管理
 - 共享中间件: 定义在 File Provider，通过 `@file` 后缀引用
-- Label 特殊字符处理: 见 [AGENTS.md](../AGENTS.md#label-值特殊字符必须加引号)
+- Label 与路由写法: 见 [docs/quadlet.md](quadlet.md#单容器服务模板)
 
 ## API 和 Dashboard 配置
 

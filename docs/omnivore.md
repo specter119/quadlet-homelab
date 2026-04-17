@@ -1,25 +1,28 @@
-# Omnivore 配置指南
+# Omnivore 特殊处理
+
+> [!IMPORTANT]
+> 本文只记录 Omnivore 相对 [`docs/quadlet.md`](quadlet.md) 与 [`docs/secrets.md`](secrets.md) 的差异；通用 Quadlet、Traefik 和 Secret 规则不在这里重复。
+
+Base docs: [`docs/quadlet.md`](quadlet.md), [`docs/secrets.md`](secrets.md)
 
 > 官方文档: <https://github.com/omnivore-app/omnivore/tree/main/self-hosting>
-
-Omnivore 是一个 Read-it-later 阅读服务，支持文章保存、标注和全文搜索。
 
 ## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  omnivore.target                                             │
+│  omnivore.target                                            │
 ├─────────────────────────────────────────────────────────────┤
-│  基础设施                                                    │
-│  ├── omnivore-postgres    (pgvector)                        │
-│  ├── omnivore-redis                                         │
-│  └── omnivore-minio       (S3 兼容存储)                      │
+│  基础设施                                                   │
+│  ├── postgres.service                                       │
+│  ├── garage.service                                         │
+│  └── omnivore-redis                                         │
 ├─────────────────────────────────────────────────────────────┤
-│  一次性任务                                                  │
-│  ├── omnivore-migrate     (数据库迁移)                       │
-│  └── omnivore-createbuckets (MinIO bucket 初始化)            │
+│  一次性任务                                                 │
+│  ├── omnivore-migrate                                       │
+│  └── omnivore-createbuckets                                 │
 ├─────────────────────────────────────────────────────────────┤
-│  应用服务                                                    │
+│  应用服务                                                   │
 │  ├── omnivore-api         → omnivore-api.{{domain}}         │
 │  ├── omnivore-web         → omnivore.{{domain}}             │
 │  ├── omnivore-content-fetch                                 │
@@ -28,7 +31,14 @@ Omnivore 是一个 Read-it-later 阅读服务，支持文章保存、标注和�
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Secrets 配置
+## 当前差异
+
+- 这是一个多容器栈，统一由 `omnivore.target` 编排
+- 业务容器同时加入 `omnivore.network` 与 `traefik.network`
+- 依赖共享 `postgres.service` 与 `garage.service`，而不是自带独立数据库 / 对象存储
+- 数据库初始化通过一次性 `omnivore-migrate.container` 完成
+
+## Secrets 映射
 
 参考官方 [.env.example](https://github.com/omnivore-app/omnivore/blob/main/self-hosting/docker-compose/.env.example)。
 
@@ -44,32 +54,11 @@ Omnivore 是一个 Read-it-later 阅读服务，支持文章保存、标注和�
 | `omnivore-minio-user` | MinIO 用户名 | `AWS_ACCESS_KEY_ID` |
 | `omnivore-minio-password` | MinIO 密码 | `AWS_SECRET_ACCESS_KEY` |
 
-## 启动顺序问题
+## 启动顺序注意事项
 
-### 问题
+虽然 `omnivore-migrate.container` 已经通过 `ExecStartPre=/usr/bin/podman healthcheck run systemd-postgres` 等待 PostgreSQL 健康检查，但冷启动时仍应优先确认 migrate 已成功，再观察 API。
 
-Quadlet 生成的 systemd 依赖（`After=`, `Requires=`）只等待容器启动，**不等待容器内应用 ready**。
-
-```
-migrate 启动时 → postgres 容器已启动 → 但 PostgreSQL 还在初始化 → migrate 连接失败
-```
-
-对比 docker-compose 的 `depends_on: condition: service_healthy`，Quadlet 没有等效机制。
-
-### 症状
-
-冷启动后 `omnivore-api` 反复重启，日志显示：
-
-```
-password authentication failed for user "app_user"
-Role "app_user" does not exist
-```
-
-这是因为 migrate 失败，`app_user` 没有被创建。
-
-### 解决方法
-
-手动重启 migrate 服务：
+若 `omnivore-api` 因数据库尚未完成初始化而失败，可按下面顺序重试：
 
 ```bash
 systemctl --user restart omnivore-migrate.service
@@ -78,32 +67,7 @@ systemctl --user restart omnivore-migrate.service
 systemctl --user restart omnivore-api.service
 ```
 
-## 常用命令
+## 参考
 
-```bash
-# 启动整个服务栈
-systemctl --user start omnivore.target
-
-# 停止整个服务栈
-systemctl --user stop omnivore.target
-
-# 查看所有 omnivore 服务状态
-systemctl --user status 'omnivore-*'
-
-# 查看 api 日志
-journalctl --user -u omnivore-api.service -f
-
-# 重置数据（删除所有数据重新初始化）
-systemctl --user stop omnivore.target
-podman volume rm omnivore-postgres-data omnivore-redis-data omnivore-minio-data
-systemctl --user start omnivore.target
-# 等几秒后手动重启 migrate
-systemctl --user restart omnivore-migrate.service
-```
-
-## Demo 用户
-
-migrate 会自动创建一个演示用户：
-
-- Email: `demo@omnivore.work`
-- Password: `demo_password`
+- <https://github.com/omnivore-app/omnivore/tree/main/self-hosting>
+- <https://github.com/omnivore-app/omnivore/blob/main/self-hosting/docker-compose/.env.example>

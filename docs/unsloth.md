@@ -1,40 +1,33 @@
-# Unsloth 配置指南
-
-## 默认行为
-
-- 镜像：`docker.io/unsloth/unsloth`
-- Traefik 域名：`https://unsloth.<domain>`
-- 容器内 Jupyter 端口：`8888`
-- 默认工作目录挂载：`%D/unsloth/work -> /workspace/work`
-- 若 deploy 时宿主机可执行 `nvidia-smi -L`，会自动注入 `--gpus all`
-
-> [!NOTE]
-> 当前仅通过 Traefik 暴露 Web UI，对外入口是 `https://unsloth.<domain>`，不保留宿主机直连端口映射。
-
-## 密码管理
-
-`JUPYTER_PASSWORD` 不写死在 `.container`，而是通过 Podman secret 注入：
-
-```ini
-Secret=unsloth-jupyter-password,type=env,target=JUPYTER_PASSWORD
-```
-
-secret 定义在 `.dotter/secrets/unsloth.conf`，首次 `dotter deploy` 会自动生成。
-
-查看当前密码：
-
-```bash
-podman secret inspect unsloth-jupyter-password --showsecret --format '{{.SecretData}}'
-```
-
-## 可选配置
+# Unsloth 特殊处理
 
 > [!IMPORTANT]
-> 当前模板只在宿主机检测到 NVIDIA GPU 时注入 `--gpus all`。若 GPU 存在但 Podman / NVIDIA / CDI 运行时未配好，服务仍可能启动失败。
+> 本文只记录 Unsloth 相对 [`docs/quadlet.md`](quadlet.md) 与 [`docs/secrets.md`](secrets.md) 的差异。
 
-### 额外挂载
+Base docs: [`docs/quadlet.md`](quadlet.md), [`docs/secrets.md`](secrets.md)
 
-若还需要额外挂载数据目录：
+## 当前差异
+
+- 镜像使用 `docker.io/unsloth/unsloth`，并配置 `Pull=newer`
+- 通过 Traefik 暴露两个入口：
+  - `https://unsloth.<domain>` → Studio (`8000`)
+  - `https://jupyterlab.unsloth.<domain>` → Jupyter (`8888`)
+- 默认挂载工作目录 `%D/unsloth/work:/workspace/work:Z`
+- `JUPYTER_PASSWORD` 通过 Podman secret `unsloth-jupyter-password` 注入
+
+## GPU 注入策略
+
+模板只在宿主机成功执行 `nvidia-smi -L` 时注入：
+
+```ini
+PodmanArgs=--gpus all
+```
+
+> [!IMPORTANT]
+> 这只是“检测到 GPU 就尝试开启”，不保证 Podman / NVIDIA / CDI 运行时已经配置完整。
+
+## 可选额外挂载
+
+通过 `unsloth.volumes` 追加自定义挂载：
 
 ```toml
 [variables.unsloth]

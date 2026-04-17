@@ -1,35 +1,35 @@
-# OpenFang 本地部署
+# OpenFang 特殊处理
 
-## 必要信息
+> [!IMPORTANT]
+> 本文只记录 OpenFang 相对 [`docs/quadlet.md`](quadlet.md) 的差异；默认 Traefik / autostart / Dotter 规则不在这里重复。
 
-- 不在容器内编译 OpenFang，直接复用宿主机二进制：`~/.local/bin/openfang`
-- 运行镜像：`localhost/openfang-runtime:trixie`（基于 `debian:trixie`）
-- 运行服务：`openfang.service`（依赖 `openfang-prepare.service`）
-- 默认挂载：`~/.local`、`~/.config`、`~/.cache`
-- Traefik 转发端口：`4200`
+Base docs: [`docs/quadlet.md`](quadlet.md)
 
-## 构建运行镜像
+## 当前差异
 
-```bash
-podman build -t localhost/openfang-runtime:trixie -f openfang/openfang/Containerfile openfang/openfang
-```
+- 运行镜像固定为本地 `localhost/openfang-runtime:trixie`
+- `openfang.service` 显式依赖 `openfang-prepare.service`
+- 不在容器内单独安装 OpenFang，而是复用宿主机 `~/.local/bin/openfang`
+- 容器默认挂载宿主机 `~/.local`、`~/.config`、`~/.cache`
+- Traefik 转发端口固定为 `4200`
 
-## 服务行为
+## 准备阶段
 
-- 启动 `openfang.service` 时，会先执行 `openfang-prepare.service`
-  - 先按 Linux 架构从 GitHub Release 下载最新 `openfang-<target>.tar.gz`
-  - 同步到宿主机 `~/.local/bin/openfang`（容器挂载复用该 binary）
-- 仅当本地不存在 `localhost/openfang-runtime:trixie` 时才会 build
-- 需要强制重建时，先删除本地镜像再重启 `openfang-prepare.service`
+`openfang-prepare.service` 会做两件事：
+
+1. 按当前 CPU 架构从 GitHub Release 下载最新 `openfang-<target>.tar.gz`
+2. 若本地镜像不存在，则基于仓库内 `openfang/openfang/Containerfile` 构建 `localhost/openfang-runtime:trixie`
+
+需要强制重建镜像时：
 
 ```bash
 podman rmi localhost/openfang-runtime:trixie
 systemctl --user restart openfang-prepare.service
 ```
 
-## 额外挂载（可选）
+## 可选额外挂载
 
-通过 `openfang.volumes` 添加额外挂载，格式与 marimo 一致：
+通过 `openfang.volumes` 追加自定义挂载：
 
 ```toml
 [variables.openfang]
@@ -39,23 +39,12 @@ volumes = [
 ]
 ```
 
-## 常见故障
+## 本地排障记录
 
-> [!NOTE]
-> 截至当前版本 `openfang 0.3.17`，OpenFang 尚不支持通过 WebSocket 连接飞书 channel。国内 IM 可用性目前不够高，因此暂不启用，后续视 OpenFang 能力演进再评估开启。
-
-### `openfang.service` 循环重启（`Another daemon ... 4200`）
-
-若日志同时出现 Telegram bridge 连接失败（例如 `Failed to start telegram bridge`），可先禁用 Telegram channel：
+若 `openfang.service` 循环重启，且日志同时出现 Telegram bridge 初始化失败，这条记录视为**当前仓库的本地排障经验**，可先禁用 Telegram channel，再重启服务：
 
 ```bash
-# 1) 删除 telegram token（宿主机）
 sed -i '/^TELEGRAM_BOT_TOKEN=/d' ~/.config/openfang/secrets.env
-
-# 2) 移除 telegram channel 配置段（宿主机）
-# 编辑 ~/.config/openfang/config.toml，删除 [channels.telegram] 段
-
-# 3) 重启服务
 systemctl --user reset-failed openfang.service
 systemctl --user restart openfang.service
 ```

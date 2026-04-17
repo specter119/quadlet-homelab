@@ -2,100 +2,46 @@
 
 通过 [dotter](https://github.com/SuperCuber/dotter) 管理的自托管服务配置，使用 [Podman Quadlet](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html) 生成 systemd 管理的容器服务。
 
+> [!NOTE]
+> `README.md` 只保留服务简介，通用维护流程、冷启动步骤与文档分工统一放在 [AGENTS.md](AGENTS.md)。
+
 ## 服务列表
 
-### 基础设施
+### 基础服务
 
-| 服务       | 说明                                                   | 文档                                   |
-| ---------- | ------------------------------------------------------ | -------------------------------------- |
-| Tailscale  | 远程访问 homelab（Split DNS）                          | [docs/tailscale.md](docs/tailscale.md) |
-| Traefik    | 反向代理，统一域名访问，自动 HTTPS                     | [docs/traefik.md](docs/traefik.md)     |
-| PostgreSQL | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 | -                                      |
-| Garage     | 共享 S3 存储，替代各服务独立的 MinIO                   | -                                      |
-| Dozzle     | 容器日志查看器                                         | -                                      |
+| 服务         | 说明                                                   |
+| ------------ | ------------------------------------------------------ |
+| Tailscale    | 远程访问 homelab（Split DNS）                          |
+| Traefik      | 反向代理，统一域名访问，自动 HTTPS                     |
+| PostgreSQL   | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 |
+| Garage       | 共享 S3 存储，替代各服务独立的 MinIO                   |
+| Dozzle       | 容器日志查看器                                         |
 
 ### 业务服务
 
-| 服务            | 说明                                | 文档                                               |
-| --------------- | ----------------------------------- | -------------------------------------------------- |
-| SilverBullet    | 个人知识管理                        | -                                                  |
-| Langfuse        | LLM 应用可观测性                    | -                                                  |
-| Omnivore        | Read-it-later 阅读服务 | [docs/omnivore.md](docs/omnivore.md) |
-| Plane | 项目管理 | - |
-| Copyparty | 文件共享服务 | - |
-| Marimo | Python 交互式 Notebook | - |
-| LunaTV | 影视聚合播放器 | - |
-| OpenFang | 本地 OpenFang Agent 运行环境（复用宿主机 binary） | [docs/openfang.md](docs/openfang.md) |
-| Unsloth | GPU Notebook / LLM 实验环境 | [docs/unsloth.md](docs/unsloth.md) |
-| Multica | AI Agent 协作看板与 Runtime 管理平台（从源码构建） | - |
-| CLIProxyAPI | OpenAI/Gemini/Claude 兼容的 CLI 代理服务 | - |
-| Nowledge Mem | 个人记忆与上下文管理服务（容器内运行 `nmem serve`） | [docs/nowledge-mem.md](docs/nowledge-mem.md) |
+| 服务         | 说明                                                |
+| ------------ | --------------------------------------------------- |
+| SilverBullet | 个人知识管理                                        |
+| Langfuse     | LLM 应用可观测性                                    |
+| Omnivore     | Read-it-later 阅读服务                              |
+| Plane        | 项目管理                                            |
+| Copyparty    | 文件共享服务                                        |
+| Marimo       | Python 交互式 Notebook                              |
+| LunaTV       | 影视聚合播放器                                      |
+| OpenFang     | 本地 OpenFang Agent 运行环境（复用宿主机 binary）   |
+| Unsloth      | GPU Notebook / LLM 实验环境                         |
+| Multica      | AI Agent 协作看板与 Runtime 管理平台（从源码构建）  |
+| CLIProxyAPI  | OpenAI / Gemini / Claude 兼容的 CLI 代理服务        |
+| Nowledge Mem | 个人记忆与上下文管理服务（容器内运行 `nmem serve`） |
 
-## 快速开始
+## 文档入口
 
-### 前置条件
-
-| 工具   | 用途                        |
-| ------ | --------------------------- |
-| podman | 容器运行时                  |
-| dotter | dotfiles 管理，部署配置文件 |
-
-```bash
-# 启用 linger，允许用户服务在登出后继续运行
-sudo loginctl enable-linger $USER
-```
-
-### 冷启动（新机器）
-
-```bash
-# 1. 克隆仓库
-git clone <repo-url>
-cd quadlet-homelab
-
-# 2. 创建 dotter 本地配置
-dotter init  # 按提示生成 .dotter/local.toml
-
-# 2.1 按 docs/dotter.md 调整本机变量（如 domain、autostart_services）
-
-# 3. 配置 Traefik（SSL 证书、低端口绑定、域名解析）
-# 详见 docs/traefik.md
-
-# 4. 部署配置文件（pre_deploy 自动初始化 secrets，post_deploy 触发 daemon-reload）
-dotter deploy
-
-# 5. 启动服务
-systemctl --user start <service>          # 单容器服务
-systemctl --user start <stack>.target     # 多容器服务栈
-```
-
-### dotter 常用命令
-
-```bash
-dotter deploy           # 部署配置文件到目标位置
-dotter undeploy         # 移除已部署的配置文件
-dotter watch            # 监听文件变更自动部署
-```
-
-## 常用命令
-
-```bash
-# systemctl - 服务管理
-systemctl --user start|stop|restart <service>
-systemctl --user status <service>
-
-# journalctl - 日志查看
-journalctl --user -u <service> -f
-
-# podman - 容器操作
-podman ps -a
-podman logs <container>
-
-# quadlet - 调试
-podman quadlet list
-```
-
-更多 Quadlet 配置细节见 [AGENTS.md](./AGENTS.md)。
-Dotter 变量规则见 [docs/dotter.md](docs/dotter.md)。
+- 文档契约、冷启动与维护入口：[`AGENTS.md`](AGENTS.md)
+- Quadlet 默认模板：[`docs/quadlet.md`](docs/quadlet.md)
+- Dotter 变量契约：[`docs/dotter.md`](docs/dotter.md)
+- Secrets 与 hook 约定：[`docs/secrets.md`](docs/secrets.md)、[`docs/hooks.md`](docs/hooks.md)
+- 基础设施配置：[`docs/traefik.md`](docs/traefik.md)、[`docs/tailscale.md`](docs/tailscale.md)
+- 仅当服务存在额外处理时，再查看 `docs/<service>.md`
 
 ## 参考文档
 
