@@ -5,7 +5,7 @@ Description=Shared S3-compatible Storage (Garage)
 DefaultDependencies=false
 {{/if}}
 [Service]
-ExecStartPre=/bin/sh -c 'if [ ! -f %h/.local/share/containers/storage/volumes/systemd-garage-meta/_data/.rpc_secret ]; then umask 077; podman secret inspect garage-rpc-secret --format "\{{.SecretData}}" 2>/dev/null | base64 -d > %h/.local/share/containers/storage/volumes/systemd-garage-meta/_data/.rpc_secret; fi'
+ExecStartPre=/bin/sh -c 'if [ ! -s %h/.local/share/containers/storage/volumes/systemd-garage-meta/_data/.rpc_secret ]; then umask 077; podman secret inspect garage-rpc-secret --showsecret --format "\{{.SecretData}}" > %h/.local/share/containers/storage/volumes/systemd-garage-meta/_data/.rpc_secret; fi'
 Restart=always
 [Container]
 Image=docker.io/dxflrs/garage:v2.1.0
