@@ -87,6 +87,9 @@ lunatv = '~/.config'
 [cliproxyapi.files]
 cliproxyapi = '~/.config'
 
+[qoder-proxy.files]
+qoder-proxy = '~/.config'
+
 [superset]
 depends = ["postgres"]
 

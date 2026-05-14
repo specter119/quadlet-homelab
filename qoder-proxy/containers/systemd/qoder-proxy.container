@@ -1,0 +1,51 @@
+[Unit]
+Description=Qoder Proxy - OpenAI-Compatible API Wrapper for Qoder CLI
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Image=ghcr.io/foxy1402/qoder-proxy:latest
+Pull=newer
+
+Network=traefik.network
+
+Environment=QODER_PERSONAL_ACCESS_TOKEN={{command_output "rbw get qoder_access"}}
+
+Secret=qoder-proxy-api-key,type=env,target=PROXY_API_KEY
+Secret=qoder-proxy-dashboard-password,type=env,target=DASHBOARD_PASSWORD
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.qoder-proxy-http.entrypoints=http
+Label=traefik.http.routers.qoder-proxy-http.middlewares=redir-https@file
+Label=traefik.http.routers.qoder-proxy-http.rule=Host(`qoder-proxy.{{domain}}`)
+Label=traefik.http.routers.qoder-proxy-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.qoder-proxy-https.entrypoints=https
+Label=traefik.http.routers.qoder-proxy-https.tls=true
+Label=traefik.http.routers.qoder-proxy-https.middlewares=gzip@file
+Label=traefik.http.routers.qoder-proxy-https.rule=Host(`qoder-proxy.{{domain}}`)
+Label=traefik.http.services.qoder-proxy.loadbalancer.server.port=3000
+
+{{#if (contains autostart_services "qoder-proxy")}}
+[Install]
+WantedBy=default.target
+{{/if}}
