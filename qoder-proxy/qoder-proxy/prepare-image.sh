@@ -2,6 +2,7 @@
 set -euo pipefail
 
 upstream_repo="{{qoder-proxy.repo_overwrite}}"
+upstream_branch="{{qoder-proxy.repo_branch}}"
 
 if [[ -z "$upstream_repo" ]]; then
   echo "[qoder-proxy-prepare] repo_overwrite is empty; local build disabled" >&2
@@ -16,24 +17,30 @@ image="localhost/qoder-proxy:latest"
 
 mkdir -p "$cache_dir"
 
-# Resolve default branch and HEAD from remote
-default_branch="main"
-upstream_ref=""
-if symref_output="$(git ls-remote --symref "$upstream_repo" HEAD 2>/dev/null)"; then
-  branch="$(echo "$symref_output" | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2}')"
-  [[ -n "$branch" ]] && default_branch="$branch"
-  upstream_ref="$(echo "$symref_output" | awk '!/^ref:/ && /HEAD/ {print $1}')"
+# Determine which branch to track
+if [[ -n "$upstream_branch" ]]; then
+  target_branch="$upstream_branch"
 else
+  # Resolve default branch from remote
+  target_branch="main"
+  if symref_output="$(git ls-remote --symref "$upstream_repo" HEAD 2>/dev/null)"; then
+    branch="$(echo "$symref_output" | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2}')"
+    [[ -n "$branch" ]] && target_branch="$branch"
+  fi
+fi
+
+# Resolve upstream HEAD for the target branch
+upstream_ref=""
+if ref_output="$(git ls-remote "$upstream_repo" "refs/heads/$target_branch" 2>/dev/null)"; then
+  upstream_ref="$(echo "$ref_output" | awk '{print $1}')"
+fi
+
+if [[ -z "$upstream_ref" ]]; then
   echo "[qoder-proxy-prepare] warning: cannot reach upstream; using cache if available" >&2
 fi
 
 current_ref=""
 [[ -f "$ref_file" ]] && current_ref="$(<"$ref_file")"
-
-current_sig=""
-[[ -f "$signature_file" ]] && current_sig="$(<"$signature_file")"
-
-desired_sig="$(printf '%s\n' "${upstream_ref:-$current_ref}" "$upstream_repo")"
 
 # Clean corrupt cache
 [[ -e "$src_dir" && ! -d "$src_dir/.git" ]] && rm -rf "$src_dir"
@@ -51,11 +58,11 @@ if [[ "$refresh" == true && -z "$upstream_ref" && ! -d "$src_dir/.git" ]]; then
 fi
 
 if [[ "$refresh" == true ]]; then
-  echo "[qoder-proxy-prepare] syncing $upstream_repo ($default_branch)"
+  echo "[qoder-proxy-prepare] syncing $upstream_repo ($target_branch)"
   if [[ ! -d "$src_dir/.git" ]]; then
-    git clone --depth 1 --branch "$default_branch" "$upstream_repo" "$src_dir"
+    git clone --depth 1 --branch "$target_branch" "$upstream_repo" "$src_dir"
   else
-    git -C "$src_dir" fetch --depth 1 origin "$default_branch"
+    git -C "$src_dir" fetch --depth 1 origin "$target_branch"
     git -C "$src_dir" reset --hard FETCH_HEAD
     git -C "$src_dir" clean -fd
   fi
@@ -65,8 +72,6 @@ build=false
 if [[ "$refresh" == true ]]; then
   build=true
 elif ! podman image exists "$image"; then
-  build=true
-elif [[ "$current_sig" != "$desired_sig" ]]; then
   build=true
 fi
 
@@ -81,4 +86,3 @@ if [[ -n "$upstream_ref" ]]; then
 elif [[ -d "$src_dir/.git" ]]; then
   git -C "$src_dir" rev-parse HEAD >"$ref_file"
 fi
-printf '%s\n' "$desired_sig" >"$signature_file"

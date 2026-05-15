@@ -92,6 +92,7 @@ qoder-proxy = '~/.config'
 
 [qoder-proxy.variables.qoder-proxy]
 repo_overwrite = ""
+repo_branch = ""
 
 [superset]
 depends = ["postgres"]
