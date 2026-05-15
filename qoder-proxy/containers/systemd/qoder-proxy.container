@@ -2,6 +2,10 @@
 Description=Qoder Proxy - OpenAI-Compatible API Wrapper for Qoder CLI
 After=traefik.service
 Wants=traefik.service
+{{#if qoder-proxy.repo_overwrite}}
+Requires=qoder-proxy-prepare.service
+After=qoder-proxy-prepare.service
+{{/if}}
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -15,8 +19,13 @@ Restart=always
 {{#if (command_success "timedatectl show -p Timezone --value")}}
 Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
 {{/if}}
+{{#if qoder-proxy.repo_overwrite}}
+Image=localhost/qoder-proxy:latest
+Pull=never
+{{else}}
 Image=ghcr.io/foxy1402/qoder-proxy:latest
 Pull=newer
+{{/if}}
 
 Network=traefik.network
 

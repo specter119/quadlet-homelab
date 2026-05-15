@@ -53,6 +53,7 @@ nested_value = { key_b = "overridden" }
 | `marimo.volumes` | array of strings | `global + local` | Marimo 额外挂载；每项直接渲染为一行 `Volume=` |
 | `unsloth.volumes` | array of strings | `global + local` | Unsloth 额外挂载；每项直接渲染为一行 `Volume=` |
 | `openfang.volumes` | array of strings | `global + local` | OpenFang 额外挂载；每项直接渲染为一行 `Volume=` |
+| `qoder-proxy.repo_overwrite` | string | `global + local` | Git 仓库 URL；设置后从源码构建本地镜像替代上游镜像 |
 
 ## 共享变量
 

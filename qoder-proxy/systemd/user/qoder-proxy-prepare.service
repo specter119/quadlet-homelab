@@ -1,0 +1,7 @@
+[Unit]
+Description=Prepare Qoder Proxy local image
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash %E/qoder-proxy/prepare-image.sh
