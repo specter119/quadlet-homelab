@@ -31,8 +31,12 @@ Network=traefik.network
 
 Environment=QODER_PERSONAL_ACCESS_TOKEN={{command_output "rbw get qoder_access"}}
 
+{{#if qoder-proxy.repo_overwrite}}
+Environment=DATA_DIR=/data/qoder-proxy
+Volume=%S/qoder-proxy:/data/qoder-proxy
+{{/if}}
+
 Secret=qoder-proxy-api-key,type=env,target=PROXY_API_KEY
-Secret=qoder-proxy-dashboard-password,type=env,target=DASHBOARD_PASSWORD
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet
