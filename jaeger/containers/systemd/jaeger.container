@@ -1,0 +1,43 @@
+[Unit]
+Description=Jaeger All-in-One — Distributed Tracing Backend
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/jaegertracing/all-in-one:latest
+Pull=newer
+Network=traefik.network
+
+# OTLP HTTP ingest (used by Bub Logfire → OTLP exporter)
+PublishPort=4318:4318
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels (expose Jaeger UI)
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.jaeger-http.entrypoints=http
+Label=traefik.http.routers.jaeger-http.middlewares=redir-https@file
+Label=traefik.http.routers.jaeger-http.rule=Host(`jaeger.{{domain}}`)
+Label=traefik.http.routers.jaeger-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.jaeger-https.entrypoints=https
+Label=traefik.http.routers.jaeger-https.tls=true
+Label=traefik.http.routers.jaeger-https.middlewares=gzip@file
+Label=traefik.http.routers.jaeger-https.rule=Host(`jaeger.{{domain}}`)
+Label=traefik.http.services.jaeger.loadbalancer.server.port=16686
+
+[Install]
+WantedBy=default.target
