@@ -1,0 +1,7 @@
+[Socket]
+ListenStream=4318
+FileDescriptorName=otlp-http
+Service=traefik.service
+
+[Install]
+WantedBy=sockets.target

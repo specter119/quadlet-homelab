@@ -99,3 +99,6 @@ depends = ["postgres"]
 
 [superset.files]
 superset = '~/.config'
+
+[jaeger.files]
+jaeger = '~/.config'

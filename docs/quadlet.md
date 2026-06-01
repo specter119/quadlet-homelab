@@ -235,6 +235,84 @@ Label=traefik.http.routers.xxx.rule=Host(`a.com`) && PathPrefix(`/path`)
 Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
 ```
 
+## 非 HTTP 端口通过 Traefik 代理（OTLP / 专用协议）
+
+当服务暴露非标准 HTTP(S) 端口（如 OTLP、gRPC、SSH、纯 API 等——只要不是浏览器访问的 UI 服务）时，不要用 `PublishPort` 直接绑主机端口，也不要分配独立域名。那样绕过 Traefik，无法按域名路由，也无法与其他服务复用端口。
+
+两类做法：
+
+1. **协议不同（OTLP、gRPC、SSH 等）** → 自定义 EntryPoint，见下方模式
+2. **HTTP API 但无 UI**（如 GraphQL API）→ 不暴露独立域名，通过主服务的路径前缀路由
+
+> [!NOTE]
+> 浏览器端直调的 API（如 Omnivore 的 `omnivore-api`）仍需独立域名，不在上述第 2 条范畴。
+
+### 模式：自定义 EntryPoint + 路由
+
+以 Jaeger OTLP HTTP（端口 4318）为例：
+
+**1. 在 Traefik 添加 EntryPoint**
+
+`traefik/traefik/traefik.toml`：
+
+```toml
+[entryPoints.otlp-http]
+address = ":4318"
+```
+
+**2. 创建 systemd socket unit**
+
+`traefik/systemd/user/otlp-http.socket`：
+
+```ini
+[Socket]
+ListenStream=4318
+FileDescriptorName=otlp-http
+Service=traefik.service
+
+[Install]
+WantedBy=sockets.target
+```
+
+**3. 在 Traefik 容器声明 socket 依赖**
+
+`traefik/containers/systemd/traefik.container`：
+
+```ini
+[Unit]
+After=http.socket https.socket otlp-http.socket podman.socket
+Requires=http.socket https.socket otlp-http.socket podman.socket
+
+[Service]
+Sockets=http.socket https.socket otlp-http.socket
+```
+
+**4. 在业务容器添加 Traefik 路由 labels**
+
+```ini
+# OTLP HTTP — 走自定义 entrypoint
+Label=traefik.http.routers.jaeger-otlp.entrypoints=otlp-http
+Label=traefik.http.routers.jaeger-otlp.rule=Host(`jaeger.{{domain}}`)
+Label=traefik.http.routers.jaeger-otlp.service=jaeger-otlp
+Label=traefik.http.services.jaeger-otlp.loadbalancer.server.port=4318
+```
+
+> [!IMPORTANT]
+> 当同一容器有多个 Traefik service 时（如 Jaeger 同时有 UI 的 `jaeger` 和 OTLP 的 `jaeger-otlp`），**每个 router 必须显式指定 `service` label**，否则 Traefik 无法自动关联，router 会被忽略。
+
+### 对比：不要用 PublishPort
+
+```ini
+# ❌ 绕过 Traefik，无法按域名路由，端口冲突风险
+PublishPort=4318:4318
+
+# ✅ 通过 Traefik entrypoint 代理，支持域名路由和端口复用
+Label=traefik.http.routers.xxx-otlp.entrypoints=otlp-http
+Label=traefik.http.routers.xxx-otlp.rule=Host(`xxx.{{domain}}`)
+Label=traefik.http.routers.xxx-otlp.service=xxx-otlp
+Label=traefik.http.services.xxx-otlp.loadbalancer.server.port=4318
+```
+
 ## 参考命令
 
 | 主题                               | 命令                      |
