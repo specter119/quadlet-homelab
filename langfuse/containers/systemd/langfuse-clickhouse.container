@@ -12,6 +12,7 @@ Restart=always
 
 [Container]
 Image=docker.io/clickhouse/clickhouse-server
+PodmanArgs=--cpus=1.5 --memory=2g
 Network=langfuse.network
 NetworkAlias=clickhouse
 User=101:101
