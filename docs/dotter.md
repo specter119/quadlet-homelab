@@ -52,7 +52,6 @@ nested_value = { key_b = "overridden" }
 | `autostart_services` | array of strings | `local` | 本机自启动服务列表；必须在 `.dotter/local.toml` 显式定义，可为空数组 |
 | `marimo.volumes` | array of strings | `global + local` | Marimo 额外挂载；每项直接渲染为一行 `Volume=` |
 | `unsloth.volumes` | array of strings | `global + local` | Unsloth 额外挂载；每项直接渲染为一行 `Volume=` |
-| `openfang.volumes` | array of strings | `global + local` | OpenFang 额外挂载；每项直接渲染为一行 `Volume=` |
 | `qoder-proxy.repo_overwrite` | string | `global + local` | Git 仓库 URL；设置后从源码构建本地镜像替代上游镜像 |
 | `qoder-proxy.repo_branch` | string | `global + local` | 指定构建分支；留空则使用仓库默认分支 |
 
@@ -77,7 +76,7 @@ autostart_services = ["silverbullet", "marimo"]
 
 ## 服务私有变量
 
-服务私有变量使用 namespaced table。模板读取 `marimo.volumes`、`unsloth.volumes`、`openfang.volumes`，所以 schema 必须写在对应 package 的同名 table 下：
+服务私有变量使用 namespaced table。模板读取 `marimo.volumes`、`unsloth.volumes`，所以 schema 必须写在对应 package 的同名 table 下：
 
 ```toml
 # .dotter/global.toml
@@ -85,9 +84,6 @@ autostart_services = ["silverbullet", "marimo"]
 volumes = []
 
 [unsloth.variables.unsloth]
-volumes = []
-
-[openfang.variables.openfang]
 volumes = []
 ```
 

@@ -1,8 +1,0 @@
-[Unit]
-Description=Prepare OpenFang host binary and runtime image
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/usr/bin/bash -lc 'set -euo pipefail; if ! (set -euo pipefail; case "$$(uname -m)" in x86_64) target=x86_64-unknown-linux-gnu ;; aarch64|arm64) target=aarch64-unknown-linux-gnu ;; *) echo "[openfang-prepare] skip update: unsupported arch $$(uname -m)" >&2; exit 0 ;; esac; tmpdir=$$(mktemp -d); trap "rm -rf \"$$tmpdir\"" EXIT; archive="$$tmpdir/openfang.tar.gz"; curl -fL "https://github.com/RightNow-AI/openfang/releases/latest/download/openfang-$$target.tar.gz" -o "$$archive"; tar -xzf "$$archive" -C "$$tmpdir"; bin_path="$$(find "$$tmpdir" -maxdepth 3 -type f -name openfang | head -n1)"; test -n "$$bin_path"; install -Dm755 "$$bin_path" "$$HOME/.local/bin/openfang"); then echo "[openfang-prepare] warning: failed to update host binary, continue with existing ~/.local/bin/openfang" >&2; fi'
-ExecStart=/usr/bin/bash -lc 'set -euo pipefail; if ! /usr/bin/podman image exists localhost/openfang-runtime:trixie; then /usr/bin/podman build -t localhost/openfang-runtime:trixie -f %E/openfang/Containerfile %E/openfang; fi'

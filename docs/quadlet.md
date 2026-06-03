@@ -249,9 +249,9 @@ Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
 
 ### 模式：自定义 EntryPoint + 路由
 
-以 Jaeger OTLP HTTP（端口 4318）为例：
+以 Phoenix OTLP HTTP 为例：Traefik 对外监听 `4318`，再转发到 Phoenix 容器内的 `6006`。
 
-**1. 在 Traefik 添加 EntryPoint**
+#### 1. 在 Traefik 添加 EntryPoint
 
 `traefik/traefik/traefik.toml`：
 
@@ -260,7 +260,7 @@ Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
 address = ":4318"
 ```
 
-**2. 创建 systemd socket unit**
+#### 2. 创建 systemd socket unit
 
 `traefik/systemd/user/otlp-http.socket`：
 
@@ -274,7 +274,7 @@ Service=traefik.service
 WantedBy=sockets.target
 ```
 
-**3. 在 Traefik 容器声明 socket 依赖**
+#### 3. 在 Traefik 容器声明 socket 依赖
 
 `traefik/containers/systemd/traefik.container`：
 
@@ -287,18 +287,18 @@ Requires=http.socket https.socket otlp-http.socket podman.socket
 Sockets=http.socket https.socket otlp-http.socket
 ```
 
-**4. 在业务容器添加 Traefik 路由 labels**
+#### 4. 在业务容器添加 Traefik 路由 labels
 
 ```ini
 # OTLP HTTP — 走自定义 entrypoint
-Label=traefik.http.routers.jaeger-otlp.entrypoints=otlp-http
-Label=traefik.http.routers.jaeger-otlp.rule=Host(`jaeger.{{domain}}`)
-Label=traefik.http.routers.jaeger-otlp.service=jaeger-otlp
-Label=traefik.http.services.jaeger-otlp.loadbalancer.server.port=4318
+Label=traefik.http.routers.phoenix-otlp.entrypoints=otlp-http
+Label=traefik.http.routers.phoenix-otlp.rule=Host(`phoenix.{{domain}}`)
+Label=traefik.http.routers.phoenix-otlp.service=phoenix-otlp
+Label=traefik.http.services.phoenix-otlp.loadbalancer.server.port=6006
 ```
 
 > [!IMPORTANT]
-> 当同一容器有多个 Traefik service 时（如 Jaeger 同时有 UI 的 `jaeger` 和 OTLP 的 `jaeger-otlp`），**每个 router 必须显式指定 `service` label**，否则 Traefik 无法自动关联，router 会被忽略。
+> 当同一容器有多个 Traefik service 时（如 Phoenix 同时有 UI 的 `phoenix` 和 OTLP 的 `phoenix-otlp`），**每个 router 必须显式指定 `service` label**，否则 Traefik 无法自动关联，router 会被忽略。
 
 ### 对比：不要用 PublishPort
 

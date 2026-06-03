@@ -1,0 +1,58 @@
+[Unit]
+Description=Arize Phoenix - LLM Observability
+After=traefik.service
+Wants=traefik.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/arizephoenix/phoenix:latest
+Pull=newer
+Network=traefik.network
+
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Environment=PHOENIX_HOST=0.0.0.0
+Environment=PHOENIX_PORT=6006
+Environment=PHOENIX_GRPC_PORT=4317
+Environment=PHOENIX_WORKING_DIR=/mnt/data
+Volume=phoenix-data.volume:/mnt/data:Z
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.phoenix-http.entrypoints=http
+Label=traefik.http.routers.phoenix-http.middlewares=redir-https@file
+Label=traefik.http.routers.phoenix-http.rule=Host(`phoenix.{{domain}}`)
+Label=traefik.http.routers.phoenix-http.service=noop@internal
+
+# HTTPS UI and OTLP HTTP collector
+Label=traefik.http.routers.phoenix-https.entrypoints=https
+Label=traefik.http.routers.phoenix-https.tls=true
+Label=traefik.http.routers.phoenix-https.middlewares=gzip@file
+Label=traefik.http.routers.phoenix-https.rule=Host(`phoenix.{{domain}}`)
+Label=traefik.http.routers.phoenix-https.service=phoenix
+Label=traefik.http.services.phoenix.loadbalancer.server.port=6006
+
+# OTLP HTTP
+Label=traefik.http.routers.phoenix-otlp.entrypoints=otlp-http
+Label=traefik.http.routers.phoenix-otlp.rule=Host(`phoenix.{{domain}}`)
+Label=traefik.http.routers.phoenix-otlp.service=phoenix-otlp
+Label=traefik.http.services.phoenix-otlp.loadbalancer.server.port=6006
+
+{{#if (contains autostart_services "phoenix")}}
+[Install]
+WantedBy=default.target
+{{/if}}
