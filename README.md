@@ -29,7 +29,7 @@
 | Marimo       | Python 交互式 Notebook                              |
 | LunaTV       | 影视聚合播放器                                      |
 | Unsloth      | GPU Notebook / LLM 实验环境                         |
-| Multica      | AI Agent 协作看板与 Runtime 管理平台（从源码构建）  |
+| Multica      | AI Agent 协作看板与 Runtime 管理平台                |
 | Nowledge Mem | 个人记忆与上下文管理服务（容器内运行 `nmem serve`） |
 | Qoder Proxy  | OpenAI 兼容的 Qoder CLI API 代理（含 Dashboard）    |
 | Phoenix      | LLM tracing / eval 可观测性，承接 OTLP trace 接入   |
