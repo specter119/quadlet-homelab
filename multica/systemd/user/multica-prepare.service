@@ -1,7 +1,0 @@
-[Unit]
-Description=Prepare Multica source tree and local images
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/usr/bin/bash %E/multica/prepare-images.sh

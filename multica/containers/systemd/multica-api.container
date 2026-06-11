@@ -1,8 +1,8 @@
 [Unit]
 Description=Multica API Server
 PartOf=multica.target
-After=postgres.service multica-prepare.service multica-migrate.service
-Requires=postgres.service multica-prepare.service multica-migrate.service
+After=postgres.service multica-initdb.service multica-migrate.service
+Requires=postgres.service multica-initdb.service multica-migrate.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -13,20 +13,23 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
-Image=localhost/multica-server:main
-Pull=never
+Image=ghcr.io/multica-ai/multica-backend:latest
+Pull=newer
 Network=multica.network
 NetworkAlias=api
+NetworkAlias=backend
+Volume=multica-backend-uploads.volume:/app/data/uploads
 
 Secret=multica-database-url,type=env,target=DATABASE_URL
 Secret=multica-jwt-secret,type=env,target=JWT_SECRET
 
 Environment=PORT=8080
+Environment=APP_ENV=production
 Environment=FRONTEND_ORIGIN=https://multica.{{domain}}
 Environment=CORS_ALLOWED_ORIGINS=https://multica.{{domain}}
 Environment=MULTICA_APP_URL=https://multica.{{domain}}
 Environment=MULTICA_SERVER_URL=wss://multica.{{domain}}/ws
-Exec=./server
+Environment=MULTICA_PUBLIC_URL=https://multica.{{domain}}
 HealthCmd=wget -q -O /dev/null http://127.0.0.1:8080/health
 
 # Dozzle group

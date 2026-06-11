@@ -1,8 +1,8 @@
 [Unit]
 Description=Run Multica database migrations
 PartOf=multica.target
-After=postgres.service multica-prepare.service multica-initdb.service
-Requires=postgres.service multica-prepare.service multica-initdb.service
+After=postgres.service multica-initdb.service
+Requires=postgres.service multica-initdb.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -17,13 +17,14 @@ RestartSec=2s
 ExecStartPre=/usr/bin/podman healthcheck run systemd-postgres
 
 [Container]
-Image=localhost/multica-server:main
-Pull=never
+Image=ghcr.io/multica-ai/multica-backend:latest
+Pull=newer
 Network=multica.network
 
 Secret=multica-database-url,type=env,target=DATABASE_URL
 
-Exec=./migrate up
+Entrypoint=./migrate
+Exec=up
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet

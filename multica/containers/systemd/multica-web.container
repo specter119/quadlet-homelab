@@ -1,8 +1,8 @@
 [Unit]
 Description=Multica Web Frontend
 PartOf=multica.target
-After=multica-prepare.service multica-api.service
-Requires=multica-prepare.service multica-api.service
+After=multica-api.service
+Requires=multica-api.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -13,14 +13,14 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
-Image=localhost/multica-web:main
-Pull=never
+Image=ghcr.io/multica-ai/multica-web:latest
+Pull=newer
 Network=multica.network
 Network=traefik.network
 
-Environment=FRONTEND_PORT=3000
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
 Environment=NODE_ENV=production
-Exec=sh -lc 'cd /app/apps/web && exec pnpm exec next start --hostname 0.0.0.0 --port "${FRONTEND_PORT:-3000}"'
 HealthCmd=wget -q -O /dev/null http://127.0.0.1:3000/
 
 # Dozzle group
