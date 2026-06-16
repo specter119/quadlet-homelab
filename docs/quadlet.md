@@ -40,6 +40,29 @@ plane.network       ← plane 栈内部通信
 - 业务子网：栈内部通信，worker/redis 等不暴露到代理网络
 - `postgres/garage`：通过 `render_networks.sh` 动态加入依赖它们的业务子网，不加入 traefik.network
 
+> [!NOTE]
+> `traefik.network` 使用 Podman 自定义 bridge 网络，启用 aardvark DNS 以支持容器名解析。这里的 `DNS=` 渲染是针对宿主机 `/etc/resolv.conf` 使用本地 stub（如 `127.0.0.53`、`127.0.0.1`）时的兼容补丁：脚本只读取内核默认路由接口对应的 DNS，发现不到时再从 `/etc/resolv.conf` 读取非本地 stub 的 nameserver，最多输出一个候选。它不会扫描所有链路，也不保证候选 DNS 在容器网络中可达；发现不到候选时不生成 `DNS=`，保留 Podman 默认行为。
+
+```mermaid
+flowchart LR
+    c["Container on traefik.network"]
+    resolv["/etc/resolv.conf\nnameserver 10.89.0.1"]
+    aardvark["aardvark-dns\nPodman network DNS"]
+    names["container names\nsystemd-traefik, aliases"]
+    external["external domains\npypi / registries / APIs"]
+    upstream["generated DNS=\ndefault-route candidate"]
+
+    c --> resolv --> aardvark
+    aardvark --> names
+    aardvark --> upstream --> external
+```
+
+不要关闭 `traefik.network` 的 DNS 插件来规避这个问题，否则会丢失同一自定义网络内的容器名解析。这里仅自动提供默认路由 DNS 候选；实际外部解析仍取决于宿主机路由、防火墙和 DNS 服务是否允许容器网络访问。
+
+`DNS=` 在 `dotter deploy` 渲染时计算，不会随 DHCP、VPN 或代理状态变化自动重算。网络环境变化后需要重新部署，并用 `podman network inspect systemd-traefik` 确认已部署网络里的 `network_dns_servers` 是否符合预期；如果既有 Podman network 没有应用新值，需要重启相关 Quadlet unit 或手动更新该网络。
+
+这一补丁来自 marimo 通过自定义 bridge 访问外部 Python mirror 的排障案例，适用于同一类 Podman/aardvark 外部解析问题；它不把 Tailscale、mihomo 或 split DNS 视为必需依赖。
+
 **示例**：langfuse-web 加入两个网络（被代理 + 栈内部），langfuse-worker 只加入栈内部网络。
 
 ## 自启动

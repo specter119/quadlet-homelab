@@ -13,6 +13,7 @@ Base docs: [`docs/quadlet.md`](quadlet.md), [`docs/dotter.md`](dotter.md)
   - `%D/marimo:/workspace:Z`
   - `%E/marimo/marimo.toml:/root/.config/marimo/marimo.toml:Z`
   - `%E/uv/uv.toml:/root/.config/uv/uv.toml:Z`
+- 若宿主机存在 `~/.netrc`，额外挂载为 `/root/.netrc:ro,Z`，用于让 `uv` 读取可选的私有源凭据；文件不存在时不生成该挂载。
 
 ## 可选额外挂载
 

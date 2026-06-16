@@ -6,27 +6,33 @@
 
 以 Dozzle 为例，本地和远程使用相同 URL（`https://dozzle.homelab.com`）：
 
+```mermaid
+flowchart TB
+    remote["Remote device\nTailscale client"]
+    admin_dns["Tailscale Split DNS\n*.homelab.com -> TS_IP"]
+
+    subgraph host["Homelab host: m600"]
+        ts["tailscaled\ntailscale0 = TS_IP"]
+        resolved["systemd-resolved\nrouting domain: ~homelab.com"]
+        dnsmasq["dnsmasq\nlisten: 127.0.0.1, TS_IP"]
+        traefik["Traefik\nHost-based routing"]
+        svc["Podman service\nDozzle / marimo / ..."]
+    end
+
+    remote -->|"DNS query: service.homelab.com"| admin_dns
+    admin_dns -->|"UDP 53 over tailnet"| dnsmasq
+    dnsmasq -->|"A = TS_IP"| remote
+    remote -->|"HTTPS Host: service.homelab.com"| traefik
+    traefik -->|"labels + traefik.network"| svc
+
+    resolved -->|"*.homelab.com"| dnsmasq
+    resolved -->|"other domains"| upstream["normal upstream DNS"]
+    dnsmasq -.->|"bind-dynamic listens when TS_IP appears"| ts
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Remote Device (手机/笔记本)                                 │
-│  └── Tailscale Client (同一 tailnet)                         │
-│      └── Split DNS: *.homelab.com → 100.x.x.x (m600)        │
-└────────────────────────┬────────────────────────────────────┘
-                         │ WireGuard Tunnel (DNS on port 53)
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Homelab Host (m600)                                        │
-│  ├── systemd-resolved (本机 DNS 调度)                        │
-│  │   ├── 默认域名 → 上游 DNS                                 │
-│  │   └── homelab.com → 127.0.0.1 (dnsmasq)                   │
-│  ├── dnsmasq (127.0.0.1:53 + TS_IP:53，解析 *.homelab.com)   │
-│  └── Traefik (Host-based routing) → Dozzle                  │
-│                                                             │
-│  DNS 查询流程：                                              │
-│  Remote → Tailscale Split DNS → m600(TS_IP):53 → dnsmasq     │
-│  Local  → systemd-resolved → 127.0.0.1(dnsmasq) → Traefik    │
-└─────────────────────────────────────────────────────────────┘
-```
+
+本机访问路径：`systemd-resolved -> dnsmasq(127.0.0.1) -> Traefik`。
+
+远程访问路径：`Tailscale Split DNS -> dnsmasq(TS_IP) -> Traefik`。
 
 ## 前置条件
 
@@ -82,16 +88,16 @@ sudo tailscale up --accept-dns=false --advertise-tags=tag:homelab
 # 更新 dnsmasq 配置（只用 listen-address，不要加 interface=tailscale0）
 sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << EOF
 listen-address=127.0.0.1,${TS_IP}
-bind-interfaces
+bind-dynamic
 address=/.homelab.com/${TS_IP}
 EOF
 
-# dnsmasq 用了 bind-interfaces，必须在 tailscaled 之后启动，否则 ${TS_IP} 地址不存在会绑定失败
+# 让 dnsmasq 优先排在 tailscaled 之后启动；bind-dynamic 负责处理地址稍后出现的情况
 sudo install -d /etc/systemd/system/dnsmasq.service.d
 sudo tee /etc/systemd/system/dnsmasq.service.d/override.conf > /dev/null << 'EOF'
 [Unit]
-After=tailscaled.service network-online.target
-Wants=network-online.target tailscaled.service
+After=tailscaled.service
+Wants=tailscaled.service
 EOF
 
 sudo systemctl daemon-reload
@@ -99,7 +105,25 @@ sudo systemctl restart dnsmasq
 ```
 
 > [!NOTE]
-> 这里用 `Wants`（而非 `Requires`），这样 tailscaled 重启时不会连带停止 dnsmasq，本机 DNS 解析不受影响。
+> `After=tailscaled.service` 只提供 systemd 启动排序，不保证 `${TS_IP}` 已经分配完成；因此这里用 `bind-dynamic`，允许 Tailscale 地址稍后出现时再被 dnsmasq 监听。不能加 `network-online.target`：上游 `dnsmasq.service` 已经 `Before=network-online.target`，本地 override 再写 `After=network-online.target` 会形成 systemd ordering cycle，导致 dnsmasq 无法启动。这里用 `Wants`（而非 `Requires`），这样 tailscaled 重启时不会连带停止 dnsmasq，本机 DNS 解析不受影响。
+
+#### systemd 启动依赖边界
+
+```mermaid
+flowchart LR
+    tailscaled["tailscaled.service\ncreates tailscale0 / TS_IP"]
+    dnsmasq["dnsmasq.service\nbinds 127.0.0.1 + TS_IP"]
+    resolved["systemd-resolved.service\nroutes ~homelab.com"]
+    network_online["network-online.target"]
+
+    tailscaled -->|"After ordering"| dnsmasq
+    dnsmasq -.->|"Wants"| tailscaled
+    dnsmasq -->|"serves local zone"| resolved
+    dnsmasq -.->|"upstream already has Before=network-online.target"| network_online
+    network_online -.->|"do not add After here"| dnsmasq
+```
+
+`dnsmasq` 需要尽量排在 `tailscaled` 后启动，但不能把 `After=` 理解为“地址已 ready”。`bind-dynamic` 承担动态地址监听；`Wants=tailscaled.service` 比 `Requires=` 更温和：tailscaled 重启或短暂不可用时，不会强制把本机 DNS 服务一并拉停。
 
 > [!TIP]
 > `/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
@@ -125,6 +149,80 @@ Android 上同时使用 FlClash 和 Tailscale 时，在 FlClash 中配置域名�
 
 - 域名：`+.homelab.com`
 - 服务器：`<TS_IP>`（如 `100.94.150.93`）
+
+### 附录：Linux mihomo（Clash.Meta）与 Tailscale 共存
+
+Linux 上若启用 mihomo TUN + `enhanced-mode: fake-ip`，**必须**把 Tailscale 相关后缀同时加入 DNS 旁路与直连规则。只做直连规则不够：域名仍会分到 fake-ip（`28.0.0.0/8`），而 `tailscaled` 以 root 运行、不在 mihomo 的 per-uid 隧道里，会表现为 `NoState` / `controlplane.tailscale.com` register `context deadline exceeded`。
+
+#### 共存拓扑
+
+```mermaid
+flowchart TB
+    app["Host apps"]
+    resolved["systemd-resolved"]
+    dnsmasq["dnsmasq\n*.homelab.com"]
+    mihomo_dns["mihomo DNS\nfake-ip: 28.0.0.0/8"]
+    tailscaled["tailscaled\nroot process"]
+    upstream["real upstream DNS"]
+
+    app --> resolved
+    resolved -->|"~homelab.com"| dnsmasq
+    resolved -->|"proxied domains"| mihomo_dns
+    resolved -->|"direct domains"| upstream
+
+    tailscaled -->|"must use real DNS for tailscale.com"| upstream
+    mihomo_dns -.->|"fake-ip allowed for normal proxied domains"| app
+
+```
+
+关键取舍：
+
+- `mihomo` 可以给普通代理域名返回 fake-ip，但 Tailscale 控制面域名必须走真实解析和直连。
+- `dnsmasq` 只负责 `*.homelab.com` 权威解析，不替代 mihomo 的代理 DNS，也不替代系统默认 DNS。
+- `systemd-resolved` 负责宿主机的 routing domain；Podman 自定义 bridge 的容器 DNS 规则见 [quadlet.md](quadlet.md#网络架构)。
+
+本仓库不管理 mihomo，只记录 Tailscale 控制面需要真实 DNS 与直连这一边界。mihomo 侧的必要 pattern：
+
+```yaml
+dns:
+  enhanced-mode: fake-ip
+  fake-ip-range: 28.0.0.1/8
+  fake-ip-filter:
+    - +.tailscale.com
+    - +.tailscale.io
+
+rules:
+  - DOMAIN-SUFFIX,tailscale.com,直连,no-resolve
+  - DOMAIN-SUFFIX,tailscale.io,直连,no-resolve
+```
+
+> [!IMPORTANT]
+> 两层都要：
+>
+> 1. `fake-ip-filter`：DNS 不返回 `28.x` fake-ip
+> 2. `DOMAIN-SUFFIX,...,直连`：流量不进代理
+>
+> 不要用 `hosts:` 写死 controlplane IP；filter 只是“走真实解析”，不是静态 hosts。
+
+修改后重启或重载 mihomo，并清空 fake-ip 缓存。验证：
+
+```bash
+# 应返回非 28.x（真实解析；若上游污染可能是 192.200.0.x，仍不是 fake-ip）
+dig @127.0.0.1 -p 1053 controlplane.tailscale.com +short
+dig @127.0.0.1 -p 1053 derp.tailscale.com +short
+
+# 对照：普通被代理域名仍应是 fake-ip
+dig @127.0.0.1 -p 1053 www.google.com +short
+
+# Tailscale 应 Running，且 peer 可达
+tailscale status
+```
+
+> [!NOTE]
+> mihomo **不**替代本机 dnsmasq。`*.homelab.com` 权威解析与 tailnet Split DNS（`TS_IP:53`）仍由 dnsmasq 负责；mihomo 只处理代理 DNS / 分流。
+
+> [!NOTE]
+> Traefik 仍是 homelab 服务的统一入口。Tailscale/mihomo 只改变宿主机的解析与出站路径；`traefik.network` 的 Podman 自定义 bridge DNS 配置和外部解析排障统一见 [quadlet.md](quadlet.md#网络架构)。
 
 ### 附录：修复 Tailscale UDP GRO warning
 
@@ -205,7 +303,7 @@ resolvectl query dozzle.homelab.com
 ```
 
 - `Global DNS Servers` 不应是 `127.0.0.1`
-- `tailscale0` 应有 `DNS Servers: 127.0.0.1` 和 `DNS Domain: ~homelab.com`
+- `Global` 应保留 `DNS Servers: 127.0.0.1` 和 `DNS Domain: ~homelab.com`；本方案不要求启用 Tailscale MagicDNS
 
 ## 安全注意事项
 
@@ -223,3 +321,4 @@ resolvectl query dozzle.homelab.com
 - [tailscaled(8)](https://man.archlinux.org/man/tailscaled.8.en)
 - [NetworkManager-dispatcher(8)](https://man.archlinux.org/man/NetworkManager-dispatcher.8.en)
 - [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
+- [mihomo DNS / fake-ip](https://wiki.metacubex.one/config/dns/)

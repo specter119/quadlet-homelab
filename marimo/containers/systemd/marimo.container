@@ -22,7 +22,9 @@ Network=traefik.network
 Volume=%D/marimo:/workspace:Z
 Volume=%E/marimo/marimo.toml:/root/.config/marimo/marimo.toml:Z
 Volume=%E/uv/uv.toml:/root/.config/uv/uv.toml:Z
+{{#if (command_success "test -f \"$HOME/.netrc\"")}}
 Volume=%h/.netrc:/root/.netrc:ro,Z
+{{/if}}
 {{#each marimo.volumes}}
 Volume={{this}}
 {{/each}}

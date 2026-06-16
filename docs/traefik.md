@@ -95,14 +95,14 @@ sysctl net.ipv4.ip_unprivileged_port_start
 
 #### 为什么需要这套组合
 
-目标是让本机能解析 `*.homelab.com`，同时容器不受影响：
+目标是让本机能解析 `*.homelab.com`，并把宿主机的本地 DNS 分流与容器网络 DNS 分开处理：
 
-- **问题**：如果把 DNS 设为 `127.0.0.1`，容器会继承这个配置导致回环
+- **问题**：如果把容器 DNS 指向宿主机的 `127.0.0.1` 或 `127.0.0.53`，容器网络内的回环地址无法代表宿主机解析器
 - **方案**：systemd-resolved 做本机 DNS 分流
   - 默认域名 → 上游 DNS（由 NetworkManager 提供）
   - `homelab.com` → 127.0.0.1（dnsmasq）
 
-结果：主机可解析 `homelab.com`，容器仍使用上游 DNS。
+结果：主机可解析 `homelab.com`；容器网络的 DNS 由对应的 Podman 网络配置负责，见 [quadlet.md](quadlet.md#网络架构)。
 
 #### 1. NetworkManager 使用 systemd-resolved
 
@@ -221,6 +221,28 @@ curl -k https://dozzle.homelab.com
 ### WSL：NRPT + dnsmasq
 
 目标：Windows 只把 `*.homelab.com` 的解析转发到 WSL 内的 dnsmasq，不改动系统默认 DNS，也不影响 WSL 自己的上网解析。
+
+#### 拓扑
+
+```mermaid
+flowchart LR
+    browser["Windows browser / app"]
+    nrpt["Windows NRPT\n.homelab.com only"]
+    win_dns["Windows normal DNS\nother domains"]
+    dnsmasq["WSL dnsmasq\nlisten: WSL_IP:53"]
+    traefik["WSL Traefik\n:80 / :443"]
+    svc["Podman service\nsystemd-* container"]
+
+    browser -->|"*.homelab.com query"| nrpt
+    nrpt -->|"DNS to WSL_IP:53"| dnsmasq
+    dnsmasq -->|"A/AAAA = WSL_IP"| browser
+    browser -->|"HTTPS Host: service.homelab.com"| traefik
+    traefik -->|"container labels"| svc
+
+    browser -.->|"other domains"| win_dns
+```
+
+这一路径只让 Windows 端把 `*.homelab.com` 交给 WSL 内的 dnsmasq。WSL 自己的默认上网 DNS 不由这套 NRPT 规则接管。
 
 1. **安装 dnsmasq**（根据 WSL 发行版选择）：
 
