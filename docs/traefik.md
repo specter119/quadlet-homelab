@@ -47,6 +47,9 @@ sysctl net.ipv4.ip_unprivileged_port_start
    mkcert worklab.com "*.worklab.com"
    ```
 
+   > [!NOTE]
+   > `mkcert` 默认输出文件名可能是 `worklab.com+1.pem` 和 `worklab.com+1-key.pem`。这里的 `+1` 仅表示证书里额外包含 1 个名称（例如 `*.worklab.com`），不是旧文件残留或命名冲突。
+
 1. **Traefik 所在 Linux/WSL：放置 leaf cert/key**
 
    将生成的 server cert/key 放到：
