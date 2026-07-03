@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends bash ca-certificates curl gnupg \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl gnupg libgomp1 \
     && curl -fsSL https://nowledge-co.github.io/community/apt/install.sh | bash \
     && apt-get update \
     && apt-get install -y --no-install-recommends nowledge-mem \

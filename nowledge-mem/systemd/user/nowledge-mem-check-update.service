@@ -3,4 +3,4 @@ Description=Build updated Nowledge Mem image if a newer package is available
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/bash %E/nowledge-mem/check-update.sh
+ExecStart=/usr/bin/bash %h/.local/lib/nowledge-mem/check-update.sh

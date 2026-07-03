@@ -1,0 +1,8 @@
+[Unit]
+Description=Sync nowledge-mem remote-access API key to systemd user environment
+Wants=nowledge-mem.service
+After=nowledge-mem.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash %h/.local/lib/nowledge-mem/sync-key.sh

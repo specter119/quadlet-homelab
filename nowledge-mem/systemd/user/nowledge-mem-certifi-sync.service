@@ -6,7 +6,7 @@ After=nowledge-mem.service
 [Service]
 Type=oneshot
 Environment=NMEM_CERT_HOST=nowledge-mem.{{domain}}
-ExecStart=/usr/bin/bash %E/nowledge-mem/sync-certifi.sh
+ExecStart=/usr/bin/bash %h/.local/lib/nowledge-mem/sync-certifi.sh
 
 [Install]
 WantedBy=nowledge-mem.service

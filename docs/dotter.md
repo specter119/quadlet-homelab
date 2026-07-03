@@ -42,6 +42,9 @@ nested_value = { key_b = "overridden" }
 - **只由本机决定且模板必须直接读取的变量**：必须在 `.dotter/local.toml` 的 `[variables]` 中显式定义，例如 `autostart_services = []`
 - **敏感值**：不要放进 `.dotter/local.toml`，改用 `.dotter/secrets/*.conf` 和 Quadlet `Secret=`
 - **服务私有配置**：使用 namespaced table，避免多个 package 共享顶层变量名
+
+> [!NOTE]
+> 上面的敏感值规则只适用于 **容器消费的输入依赖**（数据库密码、上游 API token 等容器通过 `Secret=` 读取的 secret）。对于 **容器生产、供宿主机 CLI 消费** 的输出型 key（例如 nowledge-mem 的 `NMEM_API_KEY`：容器初始化时自动生成，哈希存于 `remote-access.json`，宿主机 `nmem` CLI 通过 systemd user env 读取），走 podman `Secret=` 在语义上是错的（它是输出不是输入）。这类输出型 key 放进 `.dotter/local.toml` 作为冷启动基线、再由运行时同步脚本（`sync-key.sh`）在每次服务启动后覆盖，是上述规则的 **有正当理由的例外**。见 [`docs/nowledge-mem.md`](nowledge-mem.md) 的「API Key 同步」章节。
 - hook 脚本不负责补写变量默认值；变量行为由模板和本文件约定保证
 
 ## 当前变量 Schema

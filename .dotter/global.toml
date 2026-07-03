@@ -67,7 +67,13 @@ unsloth = '~/.config'
 volumes = []
 
 [nowledge-mem.files]
-nowledge-mem = '~/.config'
+'nowledge-mem/nowledge-mem' = '~/.local/lib/nowledge-mem'
+'nowledge-mem/systemd' = '~/.config/systemd'
+'nowledge-mem/containers' = '~/.config/containers'
+'nowledge-mem/environment.d/nowledge.conf' = { target = '~/.config/environment.d/nowledge.conf', type = 'template' }
+
+[nowledge-mem.variables]
+nmem_api_key = ""
 
 [suwayomi.files]
 suwayomi = '~/.config'

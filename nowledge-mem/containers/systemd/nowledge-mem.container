@@ -4,6 +4,7 @@ After=traefik.service
 Wants=traefik.service
 Requires=nowledge-mem-prepare.service
 After=nowledge-mem-prepare.service
+Wants=nowledge-mem-sync-key.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
