@@ -33,6 +33,7 @@
 | Nowledge Mem | 个人记忆与上下文管理服务（容器内运行 `nmem serve`） |
 | Qoder Proxy  | OpenAI 兼容的 Qoder CLI API 代理（含 Dashboard）    |
 | Phoenix      | LLM tracing / eval 可观测性，承接 OTLP trace 接入   |
+| DeepSeek Harness | DeepSeek AI Agent Web UI                           |
 
 ## 文档入口
 

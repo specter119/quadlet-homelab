@@ -30,6 +30,7 @@ nested_value = { key_b = "overridden" }
 - `.dotter/local.toml` 不使用 `[package.variables]`，只使用顶层 `[variables]`
 - Dotter 会先合并所有启用 package 的变量，再用 `.dotter/local.toml` 的 `[variables]` 按变量名递归覆盖
 - 同名标量会直接替换；同名 table 会按子键递归合并
+- 数组变量会由 local 完整替换，不会隐式追加；需要表达“保留部分 global 并追加本机值”时，local 应显式写出最终数组
 - 没有合理默认值时，优先在 `.dotter/global.toml` 放空占位符，减少模板分支；这是 schema 声明，不代表推荐默认值
 
 > [!WARNING]
@@ -54,8 +55,10 @@ nested_value = { key_b = "overridden" }
 | --- | --- | --- | --- |
 | `domain` | string | `global + local` | Traefik 和服务路由使用的基础域名；默认由 `traefik` package 提供 |
 | `autostart_services` | array of strings | `local` | 本机自启动服务列表；必须在 `.dotter/local.toml` 显式定义，可为空数组 |
+| `traefik.trusted_source_ranges` | array of strings | `global + local` | 共享 `homelab-internal@file` middleware 的客户端 CIDR；global 放常用 LAN，local 显式覆盖为本机范围 |
 | `marimo.volumes` | array of strings | `global + local` | Marimo 额外挂载；每项直接渲染为一行 `Volume=` |
 | `unsloth.volumes` | array of strings | `global + local` | Unsloth 额外挂载；每项直接渲染为一行 `Volume=` |
+| `deepseek-harness.volumes` | array of strings | `global + local` | DeepSeek Harness 额外挂载；每项直接渲染为一行 `Volume=` |
 | `qoder-proxy.repo_overwrite` | string | `global + local` | Git 仓库 URL；设置后从源码构建本地镜像替代上游镜像 |
 | `qoder-proxy.repo_branch` | string | `global + local` | 指定构建分支；留空则使用仓库默认分支 |
 
@@ -67,6 +70,12 @@ nested_value = { key_b = "overridden" }
 # .dotter/global.toml
 [traefik.variables]
 domain = "homelab.com"
+trusted_source_ranges = [
+  "127.0.0.1/32",
+  "10.0.0.0/8",
+  "172.16.0.0/12",
+  "192.168.0.0/16",
+]
 ```
 
 本机覆盖写在顶层 `[variables]`：
@@ -76,6 +85,13 @@ domain = "homelab.com"
 [variables]
 domain = "worklab.com"
 autostart_services = ["silverbullet", "marimo"]
+
+[variables.traefik]
+trusted_source_ranges = [
+  "127.0.0.1/32",
+  "192.168.0.0/16",
+  "100.64.0.0/10",
+]
 ```
 
 ## 服务私有变量

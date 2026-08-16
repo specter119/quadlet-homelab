@@ -1,0 +1,37 @@
+FROM node:24-slim AS builder
+
+WORKDIR /opt/dsh
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes g++ make python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund \
+    && npm cache clean --force
+
+FROM node:24-slim
+
+WORKDIR /opt/dsh
+
+ARG DSH_VERSION=unknown
+LABEL org.opencontainers.image.version="${DSH_VERSION}"
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes bash git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/dsh/node_modules ./node_modules
+COPY package.json quadlet-web.patch.yml run-web.sh ./
+
+ENV DSH_HOME=/var/lib/dsh
+ENV NODE_ENV=production
+
+RUN mkdir -p /var/lib/dsh /workspace \
+    && chown -R node:node /opt/dsh /var/lib/dsh /workspace \
+    && chmod 0755 /opt/dsh/run-web.sh
+
+USER node
+
+EXPOSE 3080
+ENTRYPOINT ["/opt/dsh/run-web.sh"]

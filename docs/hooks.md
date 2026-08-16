@@ -16,7 +16,8 @@ podman secret ls --format '\{{.Name}}'
 
 ## 典型用途
 
-- `pre_deploy.sh`：初始化 Podman secrets（读取 `.dotter/secrets/*.conf`）
+- `pre_deploy.sh`：初始化 Podman secrets（读取 `.dotter/secrets/*.conf`），并检查
+  `traefik.trusted_source_ranges` 的 global/local 约定；范围检查只输出 warning，不阻断部署
 - `post_deploy.sh`：`systemctl --user daemon-reload`
 
 > [!NOTE]

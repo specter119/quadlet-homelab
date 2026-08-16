@@ -1,0 +1,62 @@
+[Unit]
+Description=DeepSeek Harness Web UI
+After=traefik.service deepseek-harness-prepare.service
+Wants=traefik.service
+Requires=deepseek-harness-prepare.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+ExecStartPre=/usr/bin/mkdir -p %D/deepseek-harness/workspace
+
+[Container]
+{{#if (command_success "timedatectl show -p Timezone --value")}}
+Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
+{{/if}}
+Image=localhost/deepseek-harness:runtime
+Pull=never
+Network=traefik.network
+UserNS=keep-id
+NoNewPrivileges=true
+WorkingDir=/workspace
+
+Environment=DSH_HOME=/var/lib/dsh
+Environment=DSH_TRUSTED_HOST=deepseek-harness.{{domain}}
+
+# Harness home: settings, credentials, sessions, attachments, storage state and profiles.
+Volume=%D/deepseek-harness:/var/lib/dsh:Z
+
+# Dedicated default workspace; mount additional projects through deepseek-harness.volumes.
+Volume=%D/deepseek-harness/workspace:/workspace:Z
+{{#each deepseek-harness.volumes}}
+Volume={{this}}
+{{/each}}
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.deepseek-harness-http.entrypoints=http
+Label=traefik.http.routers.deepseek-harness-http.middlewares=redir-https@file
+Label=traefik.http.routers.deepseek-harness-http.rule=Host(`deepseek-harness.{{domain}}`)
+Label=traefik.http.routers.deepseek-harness-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.deepseek-harness-https.entrypoints=https
+Label=traefik.http.routers.deepseek-harness-https.tls=true
+Label=traefik.http.routers.deepseek-harness-https.middlewares=homelab-internal@file,gzip@file
+Label=traefik.http.routers.deepseek-harness-https.rule=Host(`deepseek-harness.{{domain}}`)
+Label=traefik.http.services.deepseek-harness.loadbalancer.server.port=3080
+
+{{#if (contains autostart_services "deepseek-harness")}}
+[Install]
+WantedBy=default.target
+{{/if}}

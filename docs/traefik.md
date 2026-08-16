@@ -361,7 +361,7 @@ flowchart LR
   rule = "Host(`traefik.{{domain}}`)"
   entrypoints = ["https"]
   service = "api@internal"
-  middlewares = ["gzip"]
+  middlewares = ["homelab-internal", "gzip"]
   [http.routers.traefik-dashboard.tls]
 ```
 
@@ -378,7 +378,24 @@ flowchart LR
   [http.middlewares.redir-https.redirectScheme]
     scheme = "https"
     permanent = false
+
+  # Access policy for services intended for the homelab network.
+  [http.middlewares.homelab-internal.ipAllowList]
+    sourceRange = [
+{{#each traefik.trusted_source_ranges}}
+      "{{this}}",
+{{/each}}
+    ]
 ```
+
+`homelab-internal` 是共享的入站访问策略，不是所有服务的全局默认值。需要限制为
+本机 LAN / Tailscale 的 HTTPS router 显式引用 `homelab-internal@file`；需要公开访问
+的服务不能把它当作身份认证，应使用服务自身认证或单独的认证 middleware。
+
+网段变量属于 `traefik` package：`.dotter/global.toml` 放常用 LAN 默认值，
+`.dotter/local.toml` 如果定义，则显式写出本机最终范围。由于数组变量是完整替换而
+不是隐式追加，local 应保留至少一个 global 范围并增加至少一个 local-only 范围；
+local 未定义时直接继承 global。`pre_deploy` 会对此发出非阻断 warning。
 
 ## 服务 Labels 模板
 

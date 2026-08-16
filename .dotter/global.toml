@@ -10,6 +10,12 @@ type = 'template'
 
 [traefik.variables]
 domain = "homelab.com"
+trusted_source_ranges = [
+  "127.0.0.1/32",
+  "10.0.0.0/8",
+  "172.16.0.0/12",
+  "192.168.0.0/16",
+]
 
 [postgres.files]
 postgres = '~/.config'
@@ -90,6 +96,15 @@ repo_branch = ""
 
 [phoenix.files]
 phoenix = '~/.config'
+
+[deepseek-harness]
+depends = ["traefik"]
+
+[deepseek-harness.files]
+deepseek-harness = '~/.config'
+
+[deepseek-harness.variables.deepseek-harness]
+volumes = []
 
 [superset]
 depends = ["postgres"]

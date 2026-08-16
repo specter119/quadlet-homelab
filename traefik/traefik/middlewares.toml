@@ -12,6 +12,14 @@
     scheme = "https"
     permanent = false
 
+  # Shared access policy for services intended for the homelab network.
+  [http.middlewares.homelab-internal.ipAllowList]
+    sourceRange = [
+{{#each traefik.trusted_source_ranges}}
+      "{{this}}",
+{{/each}}
+    ]
+
 # Traefik Dashboard Routes (using file provider to avoid Quadlet || truncation)
 [http.routers]
 
@@ -19,7 +27,7 @@
     rule = "Host(`traefik.{{domain}}`)"
     entrypoints = ["https"]
     service = "api@internal"
-    middlewares = ["gzip"]
+    middlewares = ["homelab-internal", "gzip"]
     [http.routers.traefik-dashboard.tls]
 
   [http.routers.traefik-http]
