@@ -1,9 +1,11 @@
 [Unit]
 Description=Build DeepSeek Harness image
+{{#unless (command_success "uname -r | grep -qi wsl")}}
 Wants=podman-user-wait-network-online.service
 After=podman-user-wait-network-online.service
+{{/unless}}
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/bash %E/deepseek-harness/prepare-image.sh
+ExecStart=/usr/bin/bash %h/.local/lib/deepseek-harness/prepare-image.sh

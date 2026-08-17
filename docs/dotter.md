@@ -70,6 +70,8 @@ nested_value = { key_b = "overridden" }
 # .dotter/global.toml
 [traefik.variables]
 domain = "homelab.com"
+
+[traefik.variables.traefik]
 trusted_source_ranges = [
   "127.0.0.1/32",
   "10.0.0.0/8",

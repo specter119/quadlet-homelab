@@ -7,15 +7,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund \
+RUN {{#if (command_success "test -f \"$HOME/.npmrc\"")}}--mount=type=secret,id=npmrc,target=/root/.npmrc {{/if}}npm ci --omit=dev --no-audit --no-fund \
     && npm cache clean --force
 
 FROM node:24-slim
 
 WORKDIR /opt/dsh
-
-ARG DSH_VERSION=unknown
-LABEL org.opencontainers.image.version="${DSH_VERSION}"
 
 RUN apt-get update \
     && apt-get install --no-install-recommends --yes bash git \

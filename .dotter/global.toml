@@ -10,6 +10,8 @@ type = 'template'
 
 [traefik.variables]
 domain = "homelab.com"
+
+[traefik.variables.traefik]
 trusted_source_ranges = [
   "127.0.0.1/32",
   "10.0.0.0/8",
@@ -73,7 +75,7 @@ unsloth = '~/.config'
 volumes = []
 
 [nowledge-mem.files]
-'nowledge-mem/nowledge-mem' = '~/.local/lib/nowledge-mem'
+'nowledge-mem/runtime' = '~/.local/lib/nowledge-mem'
 'nowledge-mem/systemd' = '~/.config/systemd'
 'nowledge-mem/containers' = '~/.config/containers'
 'nowledge-mem/environment.d/nowledge.conf' = { target = '~/.config/environment.d/nowledge.conf', type = 'template' }
@@ -88,7 +90,9 @@ suwayomi = '~/.config'
 lunatv = '~/.config'
 
 [qoder-proxy.files]
-qoder-proxy = '~/.config'
+'qoder-proxy/runtime' = '~/.local/lib/qoder-proxy'
+'qoder-proxy/containers' = '~/.config/containers'
+'qoder-proxy/systemd' = '~/.config/systemd'
 
 [qoder-proxy.variables.qoder-proxy]
 repo_overwrite = ""
@@ -101,7 +105,9 @@ phoenix = '~/.config'
 depends = ["traefik"]
 
 [deepseek-harness.files]
-deepseek-harness = '~/.config'
+'deepseek-harness/runtime' = { target = '~/.local/lib/deepseek-harness', type = 'template' }
+'deepseek-harness/containers' = '~/.config/containers'
+'deepseek-harness/systemd' = '~/.config/systemd'
 
 [deepseek-harness.variables.deepseek-harness]
 volumes = []

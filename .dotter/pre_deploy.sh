@@ -63,7 +63,7 @@ def warning(message: str) -> None:
 
 
 try:
-    global_ranges = read_ranges(Path(sys.argv[1]), ("traefik", "variables"))
+    global_ranges = read_ranges(Path(sys.argv[1]), ("traefik", "variables", "traefik"))
     local_ranges = read_ranges(Path(sys.argv[2]), ("variables", "traefik"))
 except (KeyError, OSError, TypeError, tomllib.TOMLDecodeError, ValueError) as error:
     warning(f"unable to validate traefik.trusted_source_ranges: {error}")

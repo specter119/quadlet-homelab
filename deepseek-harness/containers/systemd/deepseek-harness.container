@@ -11,27 +11,31 @@ DefaultDependencies=false
 {{/if}}
 [Service]
 Restart=always
-ExecStartPre=/usr/bin/mkdir -p %D/deepseek-harness/workspace
+ExecStartPre=/usr/bin/mkdir -p %D/dsh/workspace
 
 [Container]
 {{#if (command_success "timedatectl show -p Timezone --value")}}
 Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
 {{/if}}
-Image=localhost/deepseek-harness:runtime
+Image=localhost/deepseek-harness:latest
 Pull=never
 Network=traefik.network
 UserNS=keep-id
 NoNewPrivileges=true
 WorkingDir=/workspace
 
+# Loopback-only publish for the privileged /api face (settings/credentials are
+# pinned to loopback by dsh; PublishPort keeps the host port binding local).
+PublishPort=127.0.0.1:3080:3080
+
 Environment=DSH_HOME=/var/lib/dsh
 Environment=DSH_TRUSTED_HOST=deepseek-harness.{{domain}}
 
 # Harness home: settings, credentials, sessions, attachments, storage state and profiles.
-Volume=%D/deepseek-harness:/var/lib/dsh:Z
+Volume=%D/dsh:/var/lib/dsh:Z
 
 # Dedicated default workspace; mount additional projects through deepseek-harness.volumes.
-Volume=%D/deepseek-harness/workspace:/workspace:Z
+Volume=%D/dsh/workspace:/workspace:Z
 {{#each deepseek-harness.volumes}}
 Volume={{this}}
 {{/each}}
