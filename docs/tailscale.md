@@ -92,11 +92,10 @@ bind-dynamic
 address=/.homelab.com/${TS_IP}
 EOF
 
-# 让 dnsmasq 优先排在 tailscaled 之后启动；bind-dynamic 负责处理地址稍后出现的情况
+# 动态监听 Tailscale IP
 sudo install -d /etc/systemd/system/dnsmasq.service.d
 sudo tee /etc/systemd/system/dnsmasq.service.d/override.conf > /dev/null << 'EOF'
 [Unit]
-After=tailscaled.service
 Wants=tailscaled.service
 EOF
 
@@ -105,7 +104,7 @@ sudo systemctl restart dnsmasq
 ```
 
 > [!NOTE]
-> `After=tailscaled.service` 只提供 systemd 启动排序，不保证 `${TS_IP}` 已经分配完成；因此这里用 `bind-dynamic`，允许 Tailscale 地址稍后出现时再被 dnsmasq 监听。不能加 `network-online.target`：上游 `dnsmasq.service` 已经 `Before=network-online.target`，本地 override 再写 `After=network-online.target` 会形成 systemd ordering cycle，导致 dnsmasq 无法启动。这里用 `Wants`（而非 `Requires`），这样 tailscaled 重启时不会连带停止 dnsmasq，本机 DNS 解析不受影响。
+> `bind-dynamic` 适用于稍后才出现的 Tailscale 地址。这里保留 `Wants=tailscaled.service`，用于在 dnsmasq 被单独拉起时一并启动 tailscaled；若 tailscaled 已由系统独立启用，这条 `Wants=` 可按启动意图省略。不能添加 `After=network-online.target`：上游 `dnsmasq.service` 已经 `Before=network-online.target`，再添加反向顺序会形成 systemd ordering cycle，导致 dnsmasq 无法启动。`Wants` 不会像 `Requires` 那样因 tailscaled 停止而强制停止 dnsmasq。
 
 #### systemd 启动依赖边界
 
@@ -116,14 +115,14 @@ flowchart LR
     resolved["systemd-resolved.service\nroutes ~homelab.com"]
     network_online["network-online.target"]
 
-    tailscaled -->|"After ordering"| dnsmasq
+    tailscaled -.->|"TS_IP appears; bind-dynamic adds listener"| dnsmasq
     dnsmasq -.->|"Wants"| tailscaled
     dnsmasq -->|"serves local zone"| resolved
     dnsmasq -.->|"upstream already has Before=network-online.target"| network_online
     network_online -.->|"do not add After here"| dnsmasq
 ```
 
-`dnsmasq` 需要尽量排在 `tailscaled` 后启动，但不能把 `After=` 理解为“地址已 ready”。`bind-dynamic` 承担动态地址监听；`Wants=tailscaled.service` 比 `Requires=` 更温和：tailscaled 重启或短暂不可用时，不会强制把本机 DNS 服务一并拉停。
+`Wants=tailscaled.service` 仅用于把 tailscaled 拉入同一启动事务。它比 `Requires=` 更温和：tailscaled 重启或短暂不可用时，不会强制把本机 DNS 服务一并拉停。
 
 > [!TIP]
 > `/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
@@ -131,12 +130,12 @@ flowchart LR
 ### 3. 配置 Tailscale Split DNS（Admin Console）
 
 1. 打开 [Tailscale Admin Console](https://login.tailscale.com/admin/dns)
-2. 进入 **DNS** 页面
-3. 在 **Nameservers** → **Add nameserver** → **Custom**
-4. 添加 Split DNS 配置：
+1. 进入 **DNS** 页面
+1. 在 **Nameservers** → **Add nameserver** → **Custom**
+1. 添加 Split DNS 配置：
    - **Nameserver**: homelab server 的 `$TS_IP`
    - **Restrict to domain**: `homelab.com`
-5. 保存
+1. 保存
 
 > [!NOTE]
 > 配置后，tailnet 内所有设备查询 `*.homelab.com` 时会自动转发到 homelab server 的 dnsmasq。
@@ -179,7 +178,7 @@ flowchart TB
 
 - `mihomo` 可以给普通代理域名返回 fake-ip，但 Tailscale 控制面域名必须走真实解析和直连。
 - `dnsmasq` 只负责 `*.homelab.com` 权威解析，不替代 mihomo 的代理 DNS，也不替代系统默认 DNS。
-- `systemd-resolved` 负责宿主机的 routing domain；Podman 自定义 bridge 的容器 DNS 规则见 [quadlet.md](quadlet.md#网络架构)。
+- `systemd-resolved` 负责宿主机的 routing domain；Podman 自定义 bridge 的容器 DNS 规则见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
 本仓库不管理 mihomo，只记录 Tailscale 控制面需要真实 DNS 与直连这一边界。mihomo 侧的必要 pattern：
 
@@ -200,7 +199,7 @@ rules:
 > 两层都要：
 >
 > 1. `fake-ip-filter`：DNS 不返回 `28.x` fake-ip
-> 2. `DOMAIN-SUFFIX,...,直连`：流量不进代理
+> 1. `DOMAIN-SUFFIX,...,直连`：流量不进代理
 >
 > 不要用 `hosts:` 写死 controlplane IP；filter 只是“走真实解析”，不是静态 hosts。
 
@@ -222,7 +221,7 @@ tailscale status
 > mihomo **不**替代本机 dnsmasq。`*.homelab.com` 权威解析与 tailnet Split DNS（`TS_IP:53`）仍由 dnsmasq 负责；mihomo 只处理代理 DNS / 分流。
 
 > [!NOTE]
-> Traefik 仍是 homelab 服务的统一入口。Tailscale/mihomo 只改变宿主机的解析与出站路径；`traefik.network` 的 Podman 自定义 bridge DNS 配置和外部解析排障统一见 [quadlet.md](quadlet.md#网络架构)。
+> Traefik 仍是 homelab 服务的统一入口。Tailscale/mihomo 只改变宿主机的解析与出站路径；`traefik.network` 的 Podman 自定义 bridge DNS 配置和外部解析排障统一见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
 ### 附录：修复 Tailscale UDP GRO warning
 
@@ -290,7 +289,7 @@ dig @$TS_IP dozzle.homelab.com
 ### Split DNS 未生效
 
 1. 确认 Tailscale Admin Console 配置已保存
-2. 在客户端重启 Tailscale：
+1. 在客户端重启 Tailscale：
    - macOS/Windows: 退出并重新打开 Tailscale
    - Linux: `sudo systemctl restart tailscaled`
    - Android/iOS: 断开并重新连接
@@ -308,7 +307,7 @@ resolvectl query dozzle.homelab.com
 ## 安全注意事项
 
 1. **限制 DNS 递归**：当前 dnsmasq 只服务 `homelab.com` zone，不做通用递归解析
-2. **Tailscale ACL**：可在 Admin Console 限制哪些设备能访问 homelab server 的 DNS 端口
+1. **Tailscale ACL**：可在 Admin Console 限制哪些设备能访问 homelab server 的 DNS 端口
 
 ## 参考
 

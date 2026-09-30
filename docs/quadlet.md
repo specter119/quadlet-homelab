@@ -241,8 +241,8 @@ Volume=xxx-data.volume:/var/lib/xxx
 **例外情况**（需要单独 log volume）：
 
 1. 日志内容与 stdout 不同（如应用写入特定格式的审计日志）
-2. 日志量极大且需要独立管理（如数据库查询日志）
-3. 第三方工具需要读取日志文件（如日志分析器）
+1. 日志量极大且需要独立管理（如数据库查询日志）
+1. 第三方工具需要读取日志文件（如日志分析器）
 
 若无上述情况，**禁止创建 log volume**，避免数据重复和磁盘浪费。
 
@@ -265,7 +265,7 @@ Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
 两类做法：
 
 1. **协议不同（OTLP、gRPC、SSH 等）** → 自定义 EntryPoint，见下方模式
-2. **HTTP API 但无 UI**（如 GraphQL API）→ 不暴露独立域名，通过主服务的路径前缀路由
+1. **HTTP API 但无 UI**（如 GraphQL API）→ 不暴露独立域名，通过主服务的路径前缀路由
 
 > [!NOTE]
 > 浏览器端直调的 API（如 Omnivore 的 `omnivore-api`）仍需独立域名，不在上述第 2 条范畴。

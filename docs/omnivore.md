@@ -44,15 +44,15 @@ Base docs: [`docs/quadlet.md`](quadlet.md), [`docs/secrets.md`](secrets.md)
 
 本项目使用 Podman Secret 管理敏感配置，定义在 `.dotter/secrets/omnivore.conf`：
 
-| Secret 名称 | 用途 | 对应官方变量 |
-|------------|------|-------------|
-| `omnivore-postgres-password` | PostgreSQL 超级用户密码 | `POSTGRES_PASSWORD`, `PGPASSWORD` |
-| `omnivore-app-password` | app_user 密码 | `PG_PASSWORD` |
-| `omnivore-jwt-secret` | API JWT 签名 | `JWT_SECRET` |
-| `omnivore-sso-jwt-secret` | SSO JWT 签名 | `SSO_JWT_SECRET` |
-| `omnivore-image-proxy-secret` | 图片代理签名 | `IMAGE_PROXY_SECRET` |
-| `omnivore-minio-user` | MinIO 用户名 | `AWS_ACCESS_KEY_ID` |
-| `omnivore-minio-password` | MinIO 密码 | `AWS_SECRET_ACCESS_KEY` |
+| Secret 名称                   | 用途                    | 对应官方变量                      |
+| ----------------------------- | ----------------------- | --------------------------------- |
+| `omnivore-postgres-password`  | PostgreSQL 超级用户密码 | `POSTGRES_PASSWORD`, `PGPASSWORD` |
+| `omnivore-app-password`       | app_user 密码           | `PG_PASSWORD`                     |
+| `omnivore-jwt-secret`         | API JWT 签名            | `JWT_SECRET`                      |
+| `omnivore-sso-jwt-secret`     | SSO JWT 签名            | `SSO_JWT_SECRET`                  |
+| `omnivore-image-proxy-secret` | 图片代理签名            | `IMAGE_PROXY_SECRET`              |
+| `omnivore-minio-user`         | MinIO 用户名            | `AWS_ACCESS_KEY_ID`               |
+| `omnivore-minio-password`     | MinIO 密码              | `AWS_SECRET_ACCESS_KEY`           |
 
 ## 启动顺序注意事项
 

@@ -55,10 +55,10 @@ systemctl --user restart nowledge-mem.service
 
 `NMEM_API_KEY` 在宿主机被两套机制共同写入 `~/.config/environment.d/nowledge.conf`，二者方向相反、职责互补：
 
-| 路径 | 职责 | 何时写入 | 来源 |
-| --- | --- | --- | --- |
-| A. Dotter 基线 | 重建/部署基线 | `dotter deploy` 时 | `.dotter/local.toml` 顶层 `[variables]` 的 `nmem_api_key` 模板渲染 |
-| B. 运行时同步 | 运行时权威 | 每次 `nowledge-mem.service` 启动后 | `sync-key.sh` 从 journal 提取服务自报 key，原子重写 env 文件 + `import-environment` |
+| 路径           | 职责          | 何时写入                           | 来源                                                                                |
+| -------------- | ------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
+| A. Dotter 基线 | 重建/部署基线 | `dotter deploy` 时                 | `.dotter/local.toml` 顶层 `[variables]` 的 `nmem_api_key` 模板渲染                  |
+| B. 运行时同步  | 运行时权威    | 每次 `nowledge-mem.service` 启动后 | `sync-key.sh` 从 journal 提取服务自报 key，原子重写 env 文件 + `import-environment` |
 
 - **运行时同步（B）是权威**：服务每次启动都会用 journal 中的真实 key 覆盖 dotter 基线，因此重启后宿主机 `nmem` CLI 永远拿到当前生效的 key。
 - **Dotter 基线（A）是冷启动兜底**：当服务器从未启动过、journal 里还没有 key 时，dotter 渲染基线保证 env 文件存在、宿主机 CLI 有可用的初始值。两条都写 `~/.config/environment.d/nowledge.conf` 为普通文件（template 渲染，非符号链接），字节一致、互不冲突：`dotter deploy` 在 sync 覆盖后仍幂等（不加 `--force` 不报错）。

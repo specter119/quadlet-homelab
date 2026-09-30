@@ -12,12 +12,7 @@ type = 'template'
 domain = "homelab.com"
 
 [traefik.variables.traefik]
-trusted_source_ranges = [
-  "127.0.0.1/32",
-  "10.0.0.0/8",
-  "172.16.0.0/12",
-  "192.168.0.0/16",
-]
+trusted_source_ranges = ["127.0.0.1/32", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
 
 [postgres.files]
 postgres = '~/.config'
@@ -100,6 +95,12 @@ repo_branch = ""
 
 [phoenix.files]
 phoenix = '~/.config'
+
+[magpie]
+depends = ["traefik"]
+
+[magpie.files]
+magpie = '~/.config'
 
 [deepseek-harness]
 depends = ["traefik"]

@@ -1,0 +1,58 @@
+# Native prek configuration for quadlet-homelab.
+minimum_prek_version = "0.4.12"
+
+[[repos]]
+repo = "builtin"
+
+[[repos.hooks]]
+id = "trailing-whitespace"
+
+[[repos.hooks]]
+id = "end-of-file-fixer"
+
+[[repos.hooks]]
+id = "check-toml"
+# Dotter renders Handlebars blocks in this TOML template
+# before deployment.
+exclude = '^traefik/traefik/middlewares\.toml$'
+
+[[repos.hooks]]
+id = "check-added-large-files"
+
+[[repos.hooks]]
+id = "mixed-line-ending"
+args = ["--fix=lf"]
+
+[[repos]]
+repo = "https://github.com/adrienverge/yamllint"
+rev = "v1.38.0"
+
+[[repos.hooks]]
+id = "yamllint"
+args = ["--strict"]
+
+[[repos]]
+repo = "https://github.com/hukkin/mdformat"
+rev = "1.0.0"
+
+[[repos.hooks]]
+id = "mdformat"
+args = ["--wrap", "keep"]
+additional_dependencies = [
+    "mdformat-gfm==1.0.0",
+    "mdformat-front-matters==2.0.0",
+]
+
+[[repos]]
+repo = "https://github.com/igorshubovych/markdownlint-cli"
+rev = "v0.49.1"
+
+[[repos.hooks]]
+id = "markdownlint"
+
+[[repos]]
+repo = "https://github.com/gitleaks/gitleaks"
+rev = "v8.30.1"
+
+[[repos.hooks]]
+id = "gitleaks"

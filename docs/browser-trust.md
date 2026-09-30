@@ -17,9 +17,12 @@
 ## 公共约定
 
 - `DOMAIN` 必须和 `.dotter/local.toml` 里的 `domain` 一致。
+
 - Traefik 读取固定命名：
+
   - `~/.local/state/traefik/ssl/<domain>.pem.crt`
   - `~/.local/state/traefik/ssl/<domain>.pem.key`
+
 - 替换证书后重启 Traefik：
 
   ```bash
@@ -38,20 +41,22 @@
 ### 公共流程
 
 1. 在浏览器所在 host 安装 `mkcert`
-2. 安装本地 Root CA：
+
+1. 安装本地 Root CA：
 
    ```bash
    mkcert -install
    ```
 
-3. 签发 wildcard server cert：
+1. 签发 wildcard server cert：
 
    ```bash
    mkcert worklab.com "*.worklab.com"
    ```
 
-4. 将生成的 leaf cert/key 放到 Traefik 读取路径
-5. 重启 Traefik 并验证证书
+1. 将生成的 leaf cert/key 放到 Traefik 读取路径
+
+1. 重启 Traefik 并验证证书
 
 预期：
 

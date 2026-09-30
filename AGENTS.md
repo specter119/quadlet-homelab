@@ -2,26 +2,26 @@
 
 ## 文档索引
 
-| 文档                | Scope                                                             |
-| ------------------- | ----------------------------------------------------------------- |
-| README.md           | 项目简介、服务列表（只保留 description）                          |
-| AGENTS.md           | 文档契约、冷启动/维护入口、写作规范、新建服务检查清单             |
-| docs/dotter.md      | Dotter 变量契约、覆盖规则、共享/私有变量约定                      |
-| docs/quadlet.md     | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
-| docs/secrets.md     | Secrets 格式定义、一致性检查                                      |
-| docs/hooks.md       | pre/post_deploy 脚本、handlebars 转义                             |
-| docs/traefik.md     | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件         |
-| docs/tailscale.md   | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
-| docs/browser-trust.md | Windows/Linux host 浏览器信任本地 Traefik 证书的验证记录      |
-| `docs/<service>.md` | 仅记录服务相对基础模板的特殊处理、额外依赖与官方参考              |
+| 文档                  | Scope                                                             |
+| --------------------- | ----------------------------------------------------------------- |
+| README.md             | 项目简介、服务列表（只保留 description）                          |
+| AGENTS.md             | 文档契约、冷启动/维护入口、写作规范、新建服务检查清单             |
+| docs/dotter.md        | Dotter 变量契约、覆盖规则、共享/私有变量约定                      |
+| docs/quadlet.md       | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
+| docs/secrets.md       | Secrets 格式定义、一致性检查                                      |
+| docs/hooks.md         | pre/post_deploy 脚本、handlebars 转义                             |
+| docs/traefik.md       | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件         |
+| docs/tailscale.md     | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
+| docs/browser-trust.md | Windows/Linux host 浏览器信任本地 Traefik 证书的验证记录          |
+| `docs/<service>.md`   | 仅记录服务相对基础模板的特殊处理、额外依赖与官方参考              |
 
 ## 文档契约
 
-| 文档类型            | 应该包含                                           | 不应包含                                                        |
-| ------------------- | -------------------------------------------------- | --------------------------------------------------------------- |
-| `README.md`         | 服务简介、文档入口                                 | 冷启动细节、通用运维命令、逐服务配置步骤                        |
-| `AGENTS.md`         | 文档分工、维护流程、冷启动入口、新建服务 checklist | 逐服务的配置细节复制                                            |
-| 通用 `docs/*.md`    | 可复用的规则与默认模板                             | 只对单个服务成立的本地 workaround                               |
+| 文档类型            | 应该包含                                           | 不应包含                                                       |
+| ------------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| `README.md`         | 服务简介、文档入口                                 | 冷启动细节、通用运维命令、逐服务配置步骤                       |
+| `AGENTS.md`         | 文档分工、维护流程、冷启动入口、新建服务 checklist | 逐服务的配置细节复制                                           |
+| 通用 `docs/*.md`    | 可复用的规则与默认模板                             | 只对单个服务成立的本地 workaround                              |
 | `docs/<service>.md` | 偏离默认模板的差异、额外 systemd/secret/volume     | 重复 `docs/quadlet.md` / `docs/secrets.md` / `docs/traefik.md` |
 
 > [!IMPORTANT]
@@ -59,11 +59,11 @@
 ## 冷启动入口（最小流程）
 
 1. 启用 linger：`sudo loginctl enable-linger $USER`
-2. 初始化 dotter 本地配置：`dotter init`
-3. 按 [`docs/dotter.md`](docs/dotter.md) 设置本机变量
-4. 按 [`docs/traefik.md`](docs/traefik.md) 完成 SSL、低端口和本机 DNS
-5. `dotter deploy`
-6. 启动基础服务或对应 `<stack>.target`
+1. 初始化 dotter 本地配置：`dotter init`
+1. 按 [`docs/dotter.md`](docs/dotter.md) 设置本机变量
+1. 按 [`docs/traefik.md`](docs/traefik.md) 完成 SSL、低端口和本机 DNS
+1. `dotter deploy`
+1. 启动基础服务或对应 `<stack>.target`
 
 > [!NOTE]
 > 非基础服务若有额外处理，再回到对应 `docs/<service>.md` 查看差异；不要把整套冷启动流程重复写进每个服务文档。
@@ -73,9 +73,9 @@
 修改服务文档前，**必须先查阅官方文档**验证配置是否过时：
 
 1. 检查文档末尾「参考」章节的官方链接
-2. 对比本地配置与官方最新推荐
-3. 移除已废弃的配置方式，只保留当前推荐做法
-4. 同步检查交叉引用是否仍指向当前 canonical source
+1. 对比本地配置与官方最新推荐
+1. 移除已废弃的配置方式，只保留当前推荐做法
+1. 同步检查交叉引用是否仍指向当前 canonical source
 
 ## 版本控制约定
 
@@ -89,13 +89,13 @@
 
 使用 [GitHub Alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) 替代 `> **加粗前缀**：` 风格的 blockquote：
 
-| Alert 类型       | 用途                           | 示例场景                         |
-| ---------------- | ------------------------------ | -------------------------------- |
-| `> [!NOTE]`      | 补充说明、设计决策             | 解释为什么用 Wants 而非 Requires |
-| `> [!TIP]`       | 可选建议、平台特定提示         | WSL 用户额外操作                 |
-| `> [!IMPORTANT]` | 必须遵守的规则、前置条件       | 修改文档前先查阅官方链接         |
-| `> [!WARNING]`   | 会导致故障的错误配置           | 不要把 upstream 指向 127.0.0.53  |
-| `> [!CAUTION]`   | 不可逆操作、数据丢失风险       | 删除数据库、重置配置             |
+| Alert 类型       | 用途                     | 示例场景                         |
+| ---------------- | ------------------------ | -------------------------------- |
+| `> [!NOTE]`      | 补充说明、设计决策       | 解释为什么用 Wants 而非 Requires |
+| `> [!TIP]`       | 可选建议、平台特定提示   | WSL 用户额外操作                 |
+| `> [!IMPORTANT]` | 必须遵守的规则、前置条件 | 修改文档前先查阅官方链接         |
+| `> [!WARNING]`   | 会导致故障的错误配置     | 不要把 upstream 指向 127.0.0.53  |
+| `> [!CAUTION]`   | 不可逆操作、数据丢失风险 | 删除数据库、重置配置             |
 
 **不使用 alert 的场景**：纯引用链接（如 `> 官方文档: <url>`）、交叉引用（如 `> 详见 [其他文档](...)`）。
 
@@ -131,4 +131,4 @@
    - 无特殊处理：**不要新建服务文档**
    - 有特殊处理：只记录相对基础模板的差异与参考链接
 
-1. **配置 Traefik labels** - 见 [docs/quadlet.md](docs/quadlet.md#单容器服务模板)
+1. **配置 Traefik labels** - 见 [docs/quadlet.md](docs/quadlet.md#%E5%8D%95%E5%AE%B9%E5%99%A8%E6%9C%8D%E5%8A%A1%E6%A8%A1%E6%9D%BF)

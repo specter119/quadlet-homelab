@@ -57,11 +57,11 @@ Secret=<secret-name>,type=env,target=<ENV_VAR>
 
 **检查清单**：
 
-| DATABASE_URL 参数 | 说明 |
-| ----------------- | ---- |
-| 用户名 (`app_user:`) | 需在 postgres 中创建该用户 |
-| 数据库名 (`/<service>`) | 需在 postgres 中创建该数据库 |
-| 主机名 (`@postgres:`) | 通过 `render_networks.sh` 加入业务子网后可访问 |
+| DATABASE_URL 参数       | 说明                                           |
+| ----------------------- | ---------------------------------------------- |
+| 用户名 (`app_user:`)    | 需在 postgres 中创建该用户                     |
+| 数据库名 (`/<service>`) | 需在 postgres 中创建该数据库                   |
+| 主机名 (`@postgres:`)   | 通过 `render_networks.sh` 加入业务子网后可访问 |
 
 ## 参考
 

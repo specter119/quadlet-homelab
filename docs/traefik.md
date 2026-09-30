@@ -102,7 +102,7 @@ sysctl net.ipv4.ip_unprivileged_port_start
   - 默认域名 → 上游 DNS（由 NetworkManager 提供）
   - `homelab.com` → 127.0.0.1（dnsmasq）
 
-结果：主机可解析 `homelab.com`；容器网络的 DNS 由对应的 Podman 网络配置负责，见 [quadlet.md](quadlet.md#网络架构)。
+结果：主机可解析 `homelab.com`；容器网络的 DNS 由对应的 Podman 网络配置负责，见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
 #### 1. NetworkManager 使用 systemd-resolved
 
@@ -342,7 +342,7 @@ flowchart LR
 - Traefik Dashboard: 使用 File Provider 定义路由
 - 其他服务: 使用 Container Labels，配置与服务绑定，易于管理
 - 共享中间件: 定义在 File Provider，通过 `@file` 后缀引用
-- Label 与路由写法: 见 [docs/quadlet.md](quadlet.md#单容器服务模板)
+- Label 与路由写法: 见 [docs/quadlet.md](quadlet.md#%E5%8D%95%E5%AE%B9%E5%99%A8%E6%9C%8D%E5%8A%A1%E6%A8%A1%E6%9D%BF)
 
 ## API 和 Dashboard 配置
 
@@ -399,7 +399,7 @@ local 未定义时直接继承 global。`pre_deploy` 会对此发出非阻断 wa
 
 ## 服务 Labels 模板
 
-> 完整的 Quadlet 服务模板（包含 Labels）详见 [docs/quadlet.md](quadlet.md#单容器服务模板)
+> 完整的 Quadlet 服务模板（包含 Labels）详见 [docs/quadlet.md](quadlet.md#%E5%8D%95%E5%AE%B9%E5%99%A8%E6%9C%8D%E5%8A%A1%E6%A8%A1%E6%9D%BF)
 
 ## 单容器多服务配置
 
@@ -424,8 +424,8 @@ Label=traefik.http.services.myservice-api.loadbalancer.server.port=8888
 **配置要点**：
 
 1. 每个服务定义独立的 `traefik.http.services.<name>.loadbalancer.server.port`
-2. 对应的 HTTPS router 必须指定 `service=<name>@docker`
-3. HTTP router 使用 `service=noop@internal`（仅做重定向）
+1. 对应的 HTTPS router 必须指定 `service=<name>@docker`
+1. HTTP router 使用 `service=noop@internal`（仅做重定向）
 
 ## 共享基础设施访问
 
@@ -436,7 +436,7 @@ PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动
 | PostgreSQL | `postgres:5432` | 直接通过业务子网访问 |
 | Garage S3  | `garage:3900`   | 直接通过业务子网访问 |
 
-详见 [docs/quadlet.md](quadlet.md#网络架构)。
+详见 [docs/quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
 ## 参考
 
@@ -451,4 +451,4 @@ PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动
 - [resolved.conf(5)](https://man.archlinux.org/man/resolved.conf.5.en)
 - [systemd-resolved(8)](https://man.archlinux.org/man/systemd-resolved.8.en)
 - [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
-- [NRPT (Name Resolution Policy Table)](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/dn593632(v=ws.11))
+- [NRPT (Name Resolution Policy Table)](<https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/dn593632(v=ws.11)>)

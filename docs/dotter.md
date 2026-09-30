@@ -51,16 +51,16 @@ nested_value = { key_b = "overridden" }
 
 ## 当前变量 Schema
 
-| 变量 | 类型 | 来源 | 说明 |
-| --- | --- | --- | --- |
-| `domain` | string | `global + local` | Traefik 和服务路由使用的基础域名；默认由 `traefik` package 提供 |
-| `autostart_services` | array of strings | `local` | 本机自启动服务列表；必须在 `.dotter/local.toml` 显式定义，可为空数组 |
+| 变量                            | 类型             | 来源             | 说明                                                                                               |
+| ------------------------------- | ---------------- | ---------------- | -------------------------------------------------------------------------------------------------- |
+| `domain`                        | string           | `global + local` | Traefik 和服务路由使用的基础域名；默认由 `traefik` package 提供                                    |
+| `autostart_services`            | array of strings | `local`          | 本机自启动服务列表；必须在 `.dotter/local.toml` 显式定义，可为空数组                               |
 | `traefik.trusted_source_ranges` | array of strings | `global + local` | 共享 `homelab-internal@file` middleware 的客户端 CIDR；global 放常用 LAN，local 显式覆盖为本机范围 |
-| `marimo.volumes` | array of strings | `global + local` | Marimo 额外挂载；每项直接渲染为一行 `Volume=` |
-| `unsloth.volumes` | array of strings | `global + local` | Unsloth 额外挂载；每项直接渲染为一行 `Volume=` |
-| `deepseek-harness.volumes` | array of strings | `global + local` | DeepSeek Harness 额外挂载；每项直接渲染为一行 `Volume=` |
-| `qoder-proxy.repo_overwrite` | string | `global + local` | Git 仓库 URL；设置后从源码构建本地镜像替代上游镜像 |
-| `qoder-proxy.repo_branch` | string | `global + local` | 指定构建分支；留空则使用仓库默认分支 |
+| `marimo.volumes`                | array of strings | `global + local` | Marimo 额外挂载；每项直接渲染为一行 `Volume=`                                                      |
+| `unsloth.volumes`               | array of strings | `global + local` | Unsloth 额外挂载；每项直接渲染为一行 `Volume=`                                                     |
+| `deepseek-harness.volumes`      | array of strings | `global + local` | DeepSeek Harness 额外挂载；每项直接渲染为一行 `Volume=`                                            |
+| `qoder-proxy.repo_overwrite`    | string           | `global + local` | Git 仓库 URL；设置后从源码构建本地镜像替代上游镜像                                                 |
+| `qoder-proxy.repo_branch`       | string           | `global + local` | 指定构建分支；留空则使用仓库默认分支                                                               |
 
 ## 共享变量
 

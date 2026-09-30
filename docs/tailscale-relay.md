@@ -82,10 +82,10 @@ Peer Relay（Tailscale ≥ 1.86）允许将任意 Tailnet 节点升级为原生 
 
 ### ⚠️ 两个 tag 的角色分离
 
-| 节点 | Tag | 角色 | DNS | 路由 |
-|------|-----|------|-----|------|
-| m600（homelab） | `tag:homelab` | 服务端：Traefik + dnsmasq + 全部服务 | `--accept-dns=false`，运行 dnsmasq | 不做子网路由 |
-| VPS（relay） | `tag:relay` | 中继：仅转发 UDP | `--accept-dns=false`，保持系统 DNS | `--accept-routes=false` |
+| 节点            | Tag           | 角色                                 | DNS                                | 路由                    |
+| --------------- | ------------- | ------------------------------------ | ---------------------------------- | ----------------------- |
+| m600（homelab） | `tag:homelab` | 服务端：Traefik + dnsmasq + 全部服务 | `--accept-dns=false`，运行 dnsmasq | 不做子网路由            |
+| VPS（relay）    | `tag:relay`   | 中继：仅转发 UDP                     | `--accept-dns=false`，保持系统 DNS | `--accept-routes=false` |
 
 > [!NOTE]
 > 不要给 VPS 加 `tag:homelab`，也不要给 m600 加 `tag:relay`（除非 m600 本身有公网 IP 且希望兼任中继）。角色分离可以避免 ACL 权限扩散。
