@@ -46,12 +46,6 @@ Label=traefik.http.routers.phoenix-https.rule=Host(`phoenix.{{domain}}`)
 Label=traefik.http.routers.phoenix-https.service=phoenix
 Label=traefik.http.services.phoenix.loadbalancer.server.port=6006
 
-# OTLP HTTP
-Label=traefik.http.routers.phoenix-otlp.entrypoints=otlp-http
-Label=traefik.http.routers.phoenix-otlp.rule=Host(`phoenix.{{domain}}`)
-Label=traefik.http.routers.phoenix-otlp.service=phoenix-otlp
-Label=traefik.http.services.phoenix-otlp.loadbalancer.server.port=6006
-
 {{#if (contains autostart_services "phoenix")}}
 [Install]
 WantedBy=default.target

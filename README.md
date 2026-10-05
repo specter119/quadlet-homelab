@@ -19,22 +19,22 @@
 
 ### 业务服务
 
-| 服务             | 说明                                                |
-| ---------------- | --------------------------------------------------- |
-| SilverBullet     | 个人知识管理                                        |
-| Langfuse         | LLM 应用可观测性                                    |
-| Omnivore         | Read-it-later 阅读服务                              |
-| Plane            | 项目管理                                            |
-| Copyparty        | 文件共享服务                                        |
-| Marimo           | Python 交互式 Notebook                              |
-| LunaTV           | 影视聚合播放器                                      |
-| Unsloth          | GPU Notebook / LLM 实验环境                         |
-| Multica          | AI Agent 协作看板与 Runtime 管理平台                |
-| Nowledge Mem     | 个人记忆与上下文管理服务（容器内运行 `nmem serve`） |
-| Qoder Proxy      | OpenAI 兼容的 Qoder CLI API 代理（含 Dashboard）    |
-| Phoenix          | LLM tracing / eval 可观测性，承接 OTLP trace 接入   |
-| DeepSeek Harness | DeepSeek AI Agent Web UI                            |
-| Magpie           | AI Agent 模型管理 Web UI                            |
+| 服务             | 说明                                                      |
+| ---------------- | --------------------------------------------------------- |
+| SilverBullet     | 个人知识管理                                              |
+| Langfuse         | LLM 应用可观测性                                          |
+| Omnivore         | Read-it-later 阅读服务                                    |
+| Plane            | 项目管理                                                  |
+| Copyparty        | 文件共享服务                                              |
+| Marimo           | Python 交互式 Notebook                                    |
+| LunaTV           | 影视聚合播放器                                            |
+| Unsloth          | GPU Notebook / LLM 实验环境                               |
+| Multica          | AI Agent 协作看板与 Runtime 管理平台                      |
+| Nowledge Mem     | 个人记忆与上下文管理服务（容器内运行 `nmem serve`）       |
+| Qoder Proxy      | OpenAI 兼容的 Qoder CLI API 代理（含 Dashboard）          |
+| Phoenix          | LLM tracing / eval 可观测性（OTLP host ingress 按需启用） |
+| DeepSeek Harness | DeepSeek AI Agent Web UI                                  |
+| Magpie           | AI Agent 模型管理 Web UI                                  |
 
 ## 文档入口
 

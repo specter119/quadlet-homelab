@@ -272,6 +272,8 @@ Label=traefik.http.routers.xxx.rule="Host(`a.com`) && PathPrefix(`/path`)"
 
 ### 模式：自定义 EntryPoint + 路由
 
+这是按需启用的通用模式。当前默认配置不再启用 Phoenix 的 OTLP HTTP host ingress；下方 Phoenix 配置仅作为需要 OTLP HTTP 时的示例，具体当前状态见 [docs/phoenix.md](phoenix.md)。
+
 以 Phoenix OTLP HTTP 为例：Traefik 对外监听 `4318`，再转发到 Phoenix 容器内的 `6006`。
 
 #### 1. 在 Traefik 添加 EntryPoint
