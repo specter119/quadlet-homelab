@@ -151,32 +151,75 @@ sudo systemctl enable --now dnsmasq
 
 ```bash
 sudo tee /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream > /dev/null << 'EOF'
-#!/bin/bash
-IFACE="$1"
-STATE="$2"
+#!/usr/bin/env bash
+set -euo pipefail
 
-[[ "$STATE" != "up" ]] && exit 0
+STATE=${2:-}
+case "$STATE" in
+  up|down|dhcp4-change|dns-change|connectivity-change) ;;
+  *) exit 0 ;;
+esac
 
-DNS=$(nmcli -g IP4.DNS dev show "$IFACE" | head -n1)
+# Re-evaluate the current IPv4 main-table default route instead of trusting
+# the interface that emitted this event (which may be a TUN or bridge).
+UPLINK=$(
+  ip -4 route show table main default |
+    awk 'NR == 1 {
+      for (i = 1; i <= NF; i++) {
+        if ($i == "dev") {
+          print $(i + 1)
+          exit
+        }
+      }
+    }'
+)
 
-if [[ -n "$DNS" ]]; then
-  cat > /etc/dnsmasq.d/upstream.conf <<EOT
-no-resolv
-server=$DNS
-server=1.1.1.1
-EOT
-else
-  cat > /etc/dnsmasq.d/upstream.conf <<EOT
-no-resolv
-server=1.1.1.1
-EOT
+DNS=""
+if [[ -n "$UPLINK" ]]; then
+  TYPE=$(nmcli -g GENERAL.TYPE device show "$UPLINK" 2>/dev/null || true)
+  case "$TYPE" in
+    ethernet|wifi)
+      DNS=$(
+        nmcli -g IP4.DNS device show "$UPLINK" 2>/dev/null |
+          awk 'NF && $0 != "--" { print; exit }' || true
+      )
+      ;;
+  esac
 fi
 
+CONF=/etc/dnsmasq.d/upstream.conf
+TMP=$(mktemp "${CONF}.XXXXXX")
+trap 'rm -f "$TMP"' EXIT
+
+{
+  printf 'no-resolv\n'
+  if [[ -n "$DNS" && "$DNS" != "1.1.1.1" ]]; then
+    printf 'server=%s\n' "$DNS"
+  fi
+  printf 'server=1.1.1.1\n'
+} >"$TMP"
+chmod 0644 "$TMP"
+
+# Repeated events with the same effective upstream are a no-op.
+if cmp -s "$TMP" "$CONF"; then
+  exit 0
+fi
+
+# Replace atomically, then restart only after an effective config change.
+mv -f "$TMP" "$CONF"
+trap - EXIT
 systemctl restart --no-block dnsmasq
 EOF
 
 sudo chmod +x /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
+sudo bash -n /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream
+sudo /etc/NetworkManager/dispatcher.d/60-dnsmasq-upstream enp1s0 up
 ```
+
+该脚本每次只根据当前 IPv4 main-table 默认路由选择上游，而不信任触发事件的接口；只有 Ethernet/Wi-Fi 上联的有效 `IP4.DNS` 会被采用，否则只保留 `1.1.1.1` fallback。配置未变化时不写文件、不重启；变化时先同目录原子替换，再异步重启 dnsmasq。NetworkManager 的常规 `dispatcher.d` 脚本按序执行，因此这里不另加 `flock`。
+
+> [!NOTE]
+> 此脚本按 IPv4 main table 的第一条默认路由工作，适用于当前 `enp1s0` 上联；IPv6-only、multipath 或特殊策略路由环境需要相应调整。只读取 `IP4.DNS`，因此不监听 `dhcp6-change`。
 
 > [!WARNING]
 > 不要把 upstream 指向 `127.0.0.53`（systemd-resolved stub），否则会形成回环。
