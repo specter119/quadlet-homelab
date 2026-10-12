@@ -1,5 +1,5 @@
 [Unit]
-Description=Multica API Server
+Description=Multica Server
 PartOf=multica.target
 After=postgres.service multica-initdb.service multica-migrate.service
 Requires=postgres.service multica-initdb.service multica-migrate.service
@@ -41,17 +41,17 @@ Label=traefik.enable=true
 Label=traefik.docker.network=systemd-traefik
 
 # HTTP -> HTTPS redirect
-Label=traefik.http.routers.multica-api-http.entrypoints=http
-Label=traefik.http.routers.multica-api-http.rule=Host(`multica-api.{{domain}}`)
-Label=traefik.http.routers.multica-api-http.middlewares=redir-https@file
-Label=traefik.http.routers.multica-api-http.service=noop@internal
+Label=traefik.http.routers.multica-server-http.entrypoints=http
+Label=traefik.http.routers.multica-server-http.rule=Host(`multica-api.{{domain}}`)
+Label=traefik.http.routers.multica-server-http.middlewares=redir-https@file
+Label=traefik.http.routers.multica-server-http.service=noop@internal
 
 # HTTPS route
-Label=traefik.http.routers.multica-api-https.entrypoints=https
-Label=traefik.http.routers.multica-api-https.rule=Host(`multica-api.{{domain}}`)
-Label=traefik.http.routers.multica-api-https.tls=true
-Label=traefik.http.routers.multica-api-https.middlewares=gzip@file
-Label=traefik.http.services.multica-api.loadbalancer.server.port=8080
+Label=traefik.http.routers.multica-server-https.entrypoints=https
+Label=traefik.http.routers.multica-server-https.rule=Host(`multica-api.{{domain}}`)
+Label=traefik.http.routers.multica-server-https.tls=true
+Label=traefik.http.routers.multica-server-https.middlewares=gzip@file
+Label=traefik.http.services.multica-server.loadbalancer.server.port=8080
 
 [Install]
 WantedBy=multica.target
