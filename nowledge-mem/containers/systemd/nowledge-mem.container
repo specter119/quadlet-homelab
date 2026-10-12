@@ -2,8 +2,6 @@
 Description=Nowledge Mem Headless Server
 After=traefik.service
 Wants=traefik.service
-Requires=nowledge-mem-prepare.service
-After=nowledge-mem-prepare.service
 Wants=nowledge-mem-sync-key.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
@@ -18,24 +16,19 @@ Restart=always
 {{#if (command_success "timedatectl show -p Timezone --value")}}
 Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
 {{/if}}
-Image=localhost/nowledge-mem-runtime:trixie
-Pull=never
-UserNS=keep-id
+Image=docker.io/nowledgelabs/mem
+Pull=newer
+UserNS=keep-id:uid=10001,gid=10001
 NoNewPrivileges=true
 Network=traefik.network
 
-Environment=HOME=/home/nowledge
-Environment=XDG_CONFIG_HOME=/home/nowledge/.config
-Environment=XDG_DATA_HOME=/home/nowledge/.local/share
-Environment=XDG_CACHE_HOME=/home/nowledge/.cache
-
-Volume=%h/.config/co.nowledge.mem.desktop:/home/nowledge/.config/co.nowledge.mem.desktop:Z
-Volume=%h/.local/share/NowledgeGraph:/home/nowledge/.local/share/NowledgeGraph:Z
-Volume=%h/.cache/nowledge-graph:/home/nowledge/.cache/nowledge-graph:Z
-Volume=%h/.cache/huggingface:/home/nowledge/.cache/huggingface:Z
-Volume=%h/.cache/nmem-rs:/home/nowledge/.cache/nmem-rs:Z
-
-Exec=nmem serve --host 0.0.0.0 --port 14242
+# 官方镜像布局：XDG_CONFIG_HOME=/etc/nowledge-mem
+# XDG_DATA_HOME=/var/lib/nowledge-mem  XDG_CACHE_HOME=/var/cache/nowledge-mem
+# 宿主侧路径保持与 docs/nowledge-mem.md 一致，避免迁移既有数据
+Volume=%h/.config/co.nowledge.mem.desktop:/etc/nowledge-mem/co.nowledge.mem.desktop:Z
+Volume=%h/.local/share/NowledgeGraph:/var/lib/nowledge-mem/NowledgeGraph:Z
+Volume=%h/.cache/nowledge-graph:/var/cache/nowledge-mem:Z
+Volume=%h/.cache/huggingface:/var/cache/nowledge-mem/huggingface:Z
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet

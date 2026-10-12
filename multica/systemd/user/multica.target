@@ -1,2 +1,5 @@
 [Unit]
 Description=Multica Application Stack
+
+[Install]
+WantedBy=default.target

@@ -20,6 +20,9 @@ NetworkAlias=api
 NetworkAlias=backend
 Volume=multica-backend-uploads.volume:/app/data/uploads
 
+# 供宿主机 multica CLI daemon (multica.service) 访问
+PublishPort=127.0.0.1:8080:8080
+
 Secret=multica-database-url,type=env,target=DATABASE_URL
 Secret=multica-jwt-secret,type=env,target=JWT_SECRET
 
