@@ -84,15 +84,6 @@ suwayomi = '~/.config'
 [lunatv.files]
 lunatv = '~/.config'
 
-[qoder-proxy.files]
-'qoder-proxy/runtime' = '~/.local/lib/qoder-proxy'
-'qoder-proxy/containers' = '~/.config/containers'
-'qoder-proxy/systemd' = '~/.config/systemd'
-
-[qoder-proxy.variables.qoder-proxy]
-repo_overwrite = ""
-repo_branch = ""
-
 [phoenix.files]
 phoenix = '~/.config'
 

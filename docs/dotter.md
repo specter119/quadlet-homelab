@@ -59,8 +59,6 @@ nested_value = { key_b = "overridden" }
 | `marimo.volumes`                | array of strings | `global + local` | Marimo 额外挂载；每项直接渲染为一行 `Volume=`                                                      |
 | `unsloth.volumes`               | array of strings | `global + local` | Unsloth 额外挂载；每项直接渲染为一行 `Volume=`                                                     |
 | `deepseek-harness.volumes`      | array of strings | `global + local` | DeepSeek Harness 额外挂载；每项直接渲染为一行 `Volume=`                                            |
-| `qoder-proxy.repo_overwrite`    | string           | `global + local` | Git 仓库 URL；设置后从源码构建本地镜像替代上游镜像                                                 |
-| `qoder-proxy.repo_branch`       | string           | `global + local` | 指定构建分支；留空则使用仓库默认分支                                                               |
 
 ## 共享变量
 
