@@ -5,9 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+Environment=SSL_CERT_FILE=%h/.local/share/mkcert/rootCA.pem
 ExecSearchPath=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
-ExecStartPre=multica config set server_url http://localhost:8080
-ExecStartPre=multica config set app_url http://localhost:3000
+ExecStartPre=multica config set server_url https://multica-api.{{domain}}
+ExecStartPre=multica config set app_url https://multica.{{domain}}
 ExecStart=multica daemon start --foreground
 Restart=always
 RestartSec=5

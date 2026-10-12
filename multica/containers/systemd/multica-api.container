@@ -16,12 +16,10 @@ Restart=always
 Image=ghcr.io/multica-ai/multica-backend:latest
 Pull=newer
 Network=multica.network
+Network=traefik.network
 NetworkAlias=api
 NetworkAlias=backend
 Volume=multica-backend-uploads.volume:/app/data/uploads
-
-# 供宿主机 multica CLI daemon (multica.service) 访问
-PublishPort=127.0.0.1:8080:8080
 
 Secret=multica-database-url,type=env,target=DATABASE_URL
 Secret=multica-jwt-secret,type=env,target=JWT_SECRET
@@ -37,6 +35,23 @@ HealthCmd=wget -q -O /dev/null http://127.0.0.1:8080/health
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet
+
+# Traefik labels - 供 multica CLI daemon 从宿主机经域名访问 API（不占用宿主机端口）
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.multica-api-http.entrypoints=http
+Label=traefik.http.routers.multica-api-http.rule=Host(`multica-api.{{domain}}`)
+Label=traefik.http.routers.multica-api-http.middlewares=redir-https@file
+Label=traefik.http.routers.multica-api-http.service=noop@internal
+
+# HTTPS route
+Label=traefik.http.routers.multica-api-https.entrypoints=https
+Label=traefik.http.routers.multica-api-https.rule=Host(`multica-api.{{domain}}`)
+Label=traefik.http.routers.multica-api-https.tls=true
+Label=traefik.http.routers.multica-api-https.middlewares=gzip@file
+Label=traefik.http.services.multica-api.loadbalancer.server.port=8080
 
 [Install]
 WantedBy=multica.target
