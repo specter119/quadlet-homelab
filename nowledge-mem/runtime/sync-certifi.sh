@@ -19,6 +19,48 @@ fi
 launcher="$(readlink -f "$nmem_bin")"
 shebang="$(head -n1 "$launcher" || true)"
 
+# nmem 0.10.100+ 是原生 Rust ELF 二进制（uv tool 打包），无 shebang、不依赖 python certifi；
+# 信任链改为环境变量 SSL_CERT_FILE 指向本机 CA。老版 python launcher 走下方 certifi 逻辑。
+if [[ "$shebang" != '#!'* ]]; then
+    echo "[nowledge-mem-certifi] native ELF nmem detected; switching to SSL_CERT_FILE trust path"
+
+    # 优先 mkcert -install 的标准位置，其次 Windows host 的 mkcert rootCA（本机证书由 Windows mkcert 签发）
+    rootca=""
+    for cand in "$HOME/.local/share/mkcert/rootCA.pem" /mnt/c/Users/*/AppData/Local/mkcert/rootCA.pem; do
+        if [[ -f "$cand" ]]; then
+            rootca="$(readlink -f "$cand")"
+            break
+        fi
+    done
+    if [[ -z "$rootca" ]]; then
+        echo "[nowledge-mem-certifi] no mkcert root CA found (looked in ~/.local/share/mkcert and /mnt/c Windows mkcert); run mkcert -install or copy rootCA.pem" >&2
+        exit 0
+    fi
+
+    # systemd user 环境（environment.d）
+    env_dir="$HOME/.config/environment.d"
+    mkdir -p "$env_dir"
+    env_file="$env_dir/nmem-trust.conf"
+    if [[ "$(cat "$env_file" 2>/dev/null || true)" != "SSL_CERT_FILE=$rootca" ]]; then
+        printf 'SSL_CERT_FILE=%s\n' "$rootca" > "$env_file"
+        chmod 644 "$env_file"
+        echo "[nowledge-mem-certifi] wrote $env_file"
+    fi
+
+    # 交互 shell（fish conf.d，本机配置；bash 用户可自行 export）
+    fish_conf_dir="$HOME/.config/fish/conf.d"
+    if [[ -d "$fish_conf_dir" ]]; then
+        fish_conf="$fish_conf_dir/nmem-trust.fish"
+        if [[ "$(cat "$fish_conf" 2>/dev/null || true)" != "set -gx SSL_CERT_FILE $rootca" ]]; then
+            printf 'set -gx SSL_CERT_FILE %s\n' "$rootca" > "$fish_conf"
+            echo "[nowledge-mem-certifi] wrote $fish_conf"
+        fi
+    fi
+
+    echo "[nowledge-mem-certifi] SSL_CERT_FILE=$rootca"
+    exit 0
+fi
+
 if [[ "$shebang" != '#!'* ]]; then
     echo "[nowledge-mem-certifi] skip: unsupported nmem launcher format" >&2
     exit 0

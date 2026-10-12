@@ -25,7 +25,7 @@ Base docs: [`docs/quadlet.md`](quadlet.md)
 
 ## 辅助 systemd 单元
 
-- `nowledge-mem-certifi-sync.path` / `.service`：当宿主机 `uv` 安装的 `nmem-cli` 变化时，同步 `https://nowledge-mem.<domain>` 的证书链到对应 `certifi` bundle
+- `nowledge-mem-certifi-sync.path` / `.service`：把 Traefik 证书链同步到宿主机 `nmem` CLI 的信任源。新版 `nmem-cli`（≥0.10.x）是原生 Rust ELF 二进制，不再使用 python certifi bundle；脚本检测到 ELF 后改为把 mkcert root CA 的 `SSL_CERT_FILE` 写入 `~/.config/environment.d/nmem-trust.conf`（systemd user 环境）与 `~/.config/fish/conf.d/nmem-trust.fish`（交互 shell）
 - `nowledge-mem-sync-key.service`：`nowledge-mem.service` 启动后由其 `Wants=` 触发，运行 `~/.local/lib/nowledge-mem/sync-key.sh`（见下文「API Key 同步」）
 
 > [!IMPORTANT]
@@ -42,7 +42,7 @@ Base docs: [`docs/quadlet.md`](quadlet.md)
 
 > [!WARNING]
 > 官方镜像的 `nmem-server` **不再把 API key 明文打印到启动日志**（key 以加密形式存于 `~/.config/co.nowledge.mem.desktop/remote-access.json` 的 `api_key_enc` 字段）。因此路径 B 的 journal 提取在当前镜像下失效，`sync-key.sh` 恒为 no-op，env 里的 key 停留在 Dotter 基线值。
-> 若需在宿主机使用 `nmem` CLI 访问服务，需先把 `nmem-cli` 装回（`uv tool install nmem-cli`），并将 key 同步来源改为解密 `remote-access.json` 或上游文档提供的其他方式（见下方参考链接），再更新 `sync-key.sh`。
+> 当前基线 key 仍然有效（`nmem doctor` 的 authenticated probe 通过），宿主机 `nmem` CLI 可用；**只有服务轮换 key 后** env 才会过期，届时需将 key 同步来源改为解密 `remote-access.json` 或上游文档提供的其他方式（见下方参考链接），再更新 `sync-key.sh`。
 
 ### Key 流向与 secret 机制的区分
 
