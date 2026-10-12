@@ -20,44 +20,32 @@ launcher="$(readlink -f "$nmem_bin")"
 shebang="$(head -n1 "$launcher" || true)"
 
 # nmem 0.10.100+ 是原生 Rust ELF 二进制（uv tool 打包），无 shebang、不依赖 python certifi；
-# 信任链改为环境变量 SSL_CERT_FILE 指向本机 CA。老版 python launcher 走下方 certifi 逻辑。
+# 信任链交给系统 CA 库（sudo cp rootCA /usr/local/share/ca-certificates && update-ca-certificates），
+# 不再注入 SSL_CERT_FILE 环境变量 —— 那会污染所有 Rust/Go CLI 的证书验证。
+# 老版 python launcher 走下方 certifi 逻辑。
 if [[ "$shebang" != '#!'* ]]; then
-    echo "[nowledge-mem-certifi] native ELF nmem detected; switching to SSL_CERT_FILE trust path"
+    if grep -q 'mkcert development CA' /etc/ssl/certs/ca-certificates.crt 2>/dev/null; then
+        echo "[nowledge-mem-certifi] mkcert root CA already in system trust store"
+        exit 0
+    fi
 
-    # 优先 mkcert -install 的标准位置，其次 Windows host 的 mkcert rootCA（本机证书由 Windows mkcert 签发）
+    # 找候选 rootCA 路径，给出安装指引（无法自动 sudo）
     rootca=""
-    for cand in "$HOME/.local/share/mkcert/rootCA.pem" /mnt/c/Users/*/AppData/Local/mkcert/rootCA.pem; do
+    for cand in "$HOME/.local/share/mkcert/rootCA.pem" "$HOME/.local/share/ca-certificates/mkcert-rootCA.pem" /mnt/c/Users/*/AppData/Local/mkcert/rootCA.pem; do
         if [[ -f "$cand" ]]; then
             rootca="$(readlink -f "$cand")"
             break
         fi
     done
+
     if [[ -z "$rootca" ]]; then
-        echo "[nowledge-mem-certifi] no mkcert root CA found (looked in ~/.local/share/mkcert and /mnt/c Windows mkcert); run mkcert -install or copy rootCA.pem" >&2
+        echo "[nowledge-mem-certifi] mkcert root CA not found; run mkcert -install and re-run this unit" >&2
         exit 0
     fi
 
-    # systemd user 环境（environment.d）
-    env_dir="$HOME/.config/environment.d"
-    mkdir -p "$env_dir"
-    env_file="$env_dir/nmem-trust.conf"
-    if [[ "$(cat "$env_file" 2>/dev/null || true)" != "SSL_CERT_FILE=$rootca" ]]; then
-        printf 'SSL_CERT_FILE=%s\n' "$rootca" > "$env_file"
-        chmod 644 "$env_file"
-        echo "[nowledge-mem-certifi] wrote $env_file"
-    fi
-
-    # 交互 shell（fish conf.d，本机配置；bash 用户可自行 export）
-    fish_conf_dir="$HOME/.config/fish/conf.d"
-    if [[ -d "$fish_conf_dir" ]]; then
-        fish_conf="$fish_conf_dir/nmem-trust.fish"
-        if [[ "$(cat "$fish_conf" 2>/dev/null || true)" != "set -gx SSL_CERT_FILE $rootca" ]]; then
-            printf 'set -gx SSL_CERT_FILE %s\n' "$rootca" > "$fish_conf"
-            echo "[nowledge-mem-certifi] wrote $fish_conf"
-        fi
-    fi
-
-    echo "[nowledge-mem-certifi] SSL_CERT_FILE=$rootca"
+    echo "[nowledge-mem-certifi] mkcert root CA missing from system trust store; install it with:" >&2
+    echo "  sudo cp '$rootca' /usr/local/share/ca-certificates/mkcert-rootCA.crt && sudo update-ca-certificates" >&2
+    echo "[nowledge-mem-certifi] then verify with: nmem status" >&2
     exit 0
 fi
 
