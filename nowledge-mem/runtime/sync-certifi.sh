@@ -44,7 +44,13 @@ if [[ "$shebang" != '#!'* ]]; then
     fi
 
     echo "[nowledge-mem-certifi] mkcert root CA missing from system trust store; install it with:" >&2
-    echo "  sudo cp '$rootca' /usr/local/share/ca-certificates/mkcert-rootCA.crt && sudo update-ca-certificates" >&2
+    if command -v update-ca-certificates >/dev/null 2>&1; then
+        echo "  sudo install -m 644 '$rootca' /usr/local/share/ca-certificates/mkcert-rootCA.crt && sudo update-ca-certificates" >&2
+    elif command -v update-ca-trust >/dev/null 2>&1; then
+        echo "  sudo install -m 644 '$rootca' /etc/ca-certificates/trust-source/anchors/mkcert-rootCA.crt && sudo update-ca-trust" >&2
+    else
+        echo "  # unknown distro: install '$rootca' into your system trust store, then re-run this unit" >&2
+    fi
     echo "[nowledge-mem-certifi] then verify with: nmem status" >&2
     exit 0
 fi
