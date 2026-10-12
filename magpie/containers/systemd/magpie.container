@@ -19,7 +19,17 @@ Network=traefik.network
 UserNS=keep-id:uid=65532,gid=65532
 User=65532:65532
 Volume=%D/magpie:/config:Z
+# Corporate MITM proxy: container (Distroless) has no company roots, so every
+# HTTPS call (plugin market list, bun download, models.dev) fails TLS verify.
+# Reuse the host's updated CA bundle for the files SSL_CERT_FILE points at.
+Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro,Z
 Environment=MAGPIE_ADDR=0.0.0.0:3425
+# magpie's own (Go) npm-metadata fetches: npmjs is blocked, so they are
+# mirrored through Traefik's internal npm-mirror rewriter (:8081, addPrefix +
+# %2F decode + Bearer) to company Artifactory. Plugin installs need none of
+# this (they use plugins/bunfig.toml; keep chinaMirror OFF in the UI).
+Environment=MAGPIE_MIRRORS=on
+Environment=MAGPIE_NPM_REGISTRY=http://systemd-traefik:8081
 PublishPort=127.0.0.1:3425:3425
 Secret=magpie-web-key,type=env,target=MAGPIE_WEB_KEY
 Exec=web --addr 0.0.0.0:3430 --no-open

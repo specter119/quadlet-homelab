@@ -30,7 +30,7 @@
 | LunaTV           | 影视聚合播放器                                            |
 | Unsloth          | GPU Notebook / LLM 实验环境                               |
 | Multica          | AI Agent 协作看板与 Runtime 管理平台                      |
-| Nowledge Mem     | 个人记忆与上下文管理服务（官方镜像 nowledgelabs/mem）       |
+| Nowledge Mem     | 个人记忆与上下文管理服务（官方镜像 nowledgelabs/mem）     |
 | Phoenix          | LLM tracing / eval 可观测性（OTLP host ingress 按需启用） |
 | DeepSeek Harness | DeepSeek AI Agent Web UI                                  |
 | Magpie           | AI Agent 模型管理 Web UI                                  |

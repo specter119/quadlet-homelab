@@ -24,6 +24,8 @@ Volume=/etc/localtime:/etc/localtime:ro
 Volume=%t/podman/podman.sock:/var/run/docker.sock:ro
 Volume=%E/traefik/:/etc/traefik/:ro
 Volume=%S/traefik/ssl/:/data/ssl/:Z
+# Artifactory npm token, injected as Bearer to npm mirror upstream (env at runtime)
+Secret=artifactory_token,type=env,target=ARTIFACTORY_NPM_TOKEN
 Notify=true
 SecurityLabelDisable=true
 

@@ -10,6 +10,10 @@ type = 'template'
 
 [traefik.variables]
 domain = "homelab.com"
+# Corporate npm mirror backend (real values injected via local.toml, the
+# template must only carry placeholders):
+artifactory_url_base = "https://registry.example.invalid"
+artifactory_registry_path = "/artifactory/api/npm/npm-repository-virtual-external"
 
 [traefik.variables.traefik]
 trusted_source_ranges = ["127.0.0.1/32", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]

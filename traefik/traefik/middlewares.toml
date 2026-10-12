@@ -35,3 +35,44 @@
     entrypoints = ["http"]
     service = "noop@internal"
     middlewares = ["redir-https"]
+
+# npm-mirror: magpie's own (Go) npm-metadata fetches hit registry.npmjs.org
+# paths (scope encoded as %2F); the corporate network blocks npmjs and only
+# allows Artifactory, which wants the unencoded path and a Bearer token.
+# addPrefix adds the Artifactory repo prefix; replacePathRegex decodes %2F
+# (works on RawPath); headers injects the token from env (podman secret
+# ARTIFACTORY_NPM_TOKEN), read by Traefik's Go template (sprig env).
+[http.middlewares.npm-mirror-prefix.addPrefix]
+  prefix = "{{artifactory_registry_path}}"
+
+[http.middlewares.npm-mirror-decode.replacePathRegex]
+  regex = "%2F"
+  replacement = "/"
+
+[http.middlewares.npm-mirror-auth.headers.customRequestHeaders]
+  Authorization = "Bearer \{{ env "ARTIFACTORY_NPM_TOKEN" }}"
+
+[http.services.npm-mirror.loadBalancer]
+  [[http.services.npm-mirror.loadBalancer.servers]]
+    url = "{{artifactory_url_base}}"
+
+[http.routers.npm-mirror]
+  rule = "Host(`npm-mirror.{{domain}}`)"
+  entrypoints = ["https"]
+  service = "npm-mirror"
+  middlewares = ["npm-mirror-prefix", "npm-mirror-decode", "npm-mirror-auth"]
+  [http.routers.npm-mirror.tls]
+
+[http.routers.npm-mirror-http]
+  rule = "Host(`npm-mirror.{{domain}}`)"
+  entrypoints = ["http"]
+  service = "noop@internal"
+  middlewares = ["redir-https"]
+
+# Internal entry: in-network containers (magpie) reach the rewriter on :8081
+# (host 443 is socket-activated and not bound on the podman network).
+[http.routers.npm-mirror-internal]
+  rule = "PathPrefix(`/`)"
+  entrypoints = ["npm-mirror"]
+  service = "npm-mirror"
+  middlewares = ["npm-mirror-prefix", "npm-mirror-decode", "npm-mirror-auth"]
