@@ -1,0 +1,6 @@
+# 未配置 SMTP/Resend 时，server 把登录验证码只打印到 stdout（见 docs/log-notify.md）
+[[rule]]
+unit = "multica-server.service"
+pattern = 'Verification code for (?P<who>\S+): (?P<code>\d+)'
+title = "Multica 验证码"
+body = "{code}  ({who})"

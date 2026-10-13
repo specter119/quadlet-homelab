@@ -82,6 +82,10 @@ volumes = []
 [nowledge-mem.variables]
 nmem_api_key = ""
 
+[log-notify.files]
+'log-notify/runtime' = '~/.local/lib/log-notify'
+'log-notify/systemd' = '~/.config/systemd'
+
 [suwayomi.files]
 suwayomi = '~/.config'
 

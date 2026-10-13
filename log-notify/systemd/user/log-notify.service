@@ -1,0 +1,14 @@
+[Unit]
+Description=Notify on journal log patterns
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/lib/log-notify/log-notify.py
+Restart=always
+RestartSec=5s
+# No rules -> the script exits 0; don't restart-loop in that case.
+RestartPreventExitStatus=0
+
+{{#if (contains autostart_services "log-notify")}}
+[Install]
+WantedBy=default.target
+{{/if}}

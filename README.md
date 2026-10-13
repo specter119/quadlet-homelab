@@ -16,6 +16,7 @@
 | PostgreSQL | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 |
 | Garage     | 共享 S3 存储，替代各服务独立的 MinIO                   |
 | Dozzle     | 容器日志查看器                                         |
+| Log Notify | 按服务声明的日志正则触发桌面通知（如验证码）           |
 
 ### 业务服务
 

@@ -12,6 +12,7 @@
 | docs/hooks.md         | pre/post_deploy 脚本、handlebars 转义                             |
 | docs/traefik.md       | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件         |
 | docs/tailscale.md     | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
+| docs/log-notify.md    | 日志命中正则 → 桌面通知（规则格式、接入方式、TODO）               |
 | docs/browser-trust.md | Windows/Linux host 浏览器信任本地 Traefik 证书的验证记录          |
 | `docs/<service>.md`   | 仅记录服务相对基础模板的特殊处理、额外依赖与官方参考              |
 
