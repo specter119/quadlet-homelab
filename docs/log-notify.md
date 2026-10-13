@@ -40,10 +40,10 @@ body = "{code}  ({who})"          # 用命名分组格式化，{0} 是整段匹�
 
 ## 通知出口
 
-调用 dotfiles 的 `~/.local/share/cli-hooks/notify.sh`（WSL 弹 Windows 通知，Linux 走 `notify-send`），标题通过 `NOTIFICATION_TITLE` 传入。找不到它时退回 `notify-send`。
+本仓库不实现通知发送，直接调用外部 dotfiles 仓库部署的 [`notify.sh`](https://github.com/specter119/dotfiles/blob/master/agent/share/cli-hooks/notify.sh)（WSL 弹 Windows 通知，Linux 走 `notify-send`）。标题通过 `NOTIFICATION_TITLE` 传入，找不到它时退回 `notify-send`。
 
 > [!IMPORTANT]
-> 通知出口依赖 dotfiles 仓库的 `agent` package。路径可用环境变量 `LOG_NOTIFY_SH` 覆盖。
+> 依赖 [specter119/dotfiles](https://github.com/specter119/dotfiles) 的 `agent` package 把它部署到 `~/.local/share/cli-hooks/notify.sh`。通知相关的行为变更请改那边，不要在本仓库重复实现。路径可用环境变量 `LOG_NOTIFY_SH` 覆盖。
 
 ## 已接入
 
@@ -57,5 +57,6 @@ body = "{code}  ({who})"          # 用命名分组格式化，{0} 是整段匹�
 
 ## 参考
 
+- <https://github.com/specter119/dotfiles/blob/master/agent/share/cli-hooks/notify.sh>
 - <https://www.freedesktop.org/software/systemd/man/latest/journalctl.html>
 - <https://docs.python.org/3/library/re.html>
