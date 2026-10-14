@@ -38,7 +38,7 @@ plane.network       ← plane 栈内部通信
 
 - `traefik.network`：只有需要被 Traefik 代理的容器加入
 - 业务子网：栈内部通信，worker/redis 等不暴露到代理网络
-- `postgres/garage`：通过 `render_networks.sh` 动态加入依赖它们的业务子网，不加入 traefik.network
+- `postgres/silo`：通过 `render_networks.sh` 动态加入依赖它们的业务子网，不加入 traefik.network
 
 > [!NOTE]
 > `traefik.network` 使用 Podman 自定义 bridge 网络，启用 aardvark DNS 以支持容器名解析。这里的 `DNS=` 渲染是针对宿主机 `/etc/resolv.conf` 使用本地 stub（如 `127.0.0.53`、`127.0.0.1`）时的兼容补丁：脚本只读取内核默认路由接口对应的 DNS，发现不到时再从 `/etc/resolv.conf` 读取非本地 stub 的 nameserver，最多输出一个候选。它不会扫描所有链路，也不保证候选 DNS 在容器网络中可达；发现不到候选时不生成 `DNS=`，保留 Podman 默认行为。
@@ -184,8 +184,8 @@ NetworkAlias=postgres
 
 - Postgres：`PGHOST=postgres`、`PG_HOST=postgres`、`POSTGRES_USER=...`、`POSTGRES_DB=...`、`POSTGRES_PASSWORD=...`、
   `POSTGRES_PORT=5432`、`DATABASE_URL=postgresql://...@postgres:5432/...`
-- S3/Garage：`AWS_S3_ENDPOINT_URL=http://garage:3900`、`LOCAL_MINIO_URL=http://garage:3900`、
-  `AWS_ENDPOINT_URL=...garage...`、`S3_ENDPOINT=...garage...`、`MINIO_ENDPOINT=...garage...`
+- S3/Silo：`AWS_S3_ENDPOINT_URL=http://silo:9000`、`LOCAL_MINIO_URL=http://silo:9000`、
+  `AWS_ENDPOINT_URL=...silo...`、`S3_ENDPOINT=...silo...`、`MINIO_ENDPOINT=...silo...`、`AWS_REGION=us-east-1`
 
 当容器配置包含上述变量时，必须在 `[Unit]` 中显式添加依赖：
 
@@ -193,13 +193,55 @@ NetworkAlias=postgres
 Requires=postgres.service
 After=postgres.service
 
-Requires=garage.service
-After=garage.service
+Requires=silo.service <stack>-s3-init.service
+After=silo.service <stack>-s3-init.service
 ```
 
-### 依赖就绪门禁（排障）
+`silo.container` 与 `postgres.container` 都配置了 `Notify=healthy`，所以 `After=<dep>.service` 即代表依赖已可服务，依赖方不需要自己探测就绪（见「依赖就绪门禁」）。`<stack>-s3-init.service` 负责该栈的 bucket 与凭据（见「S3 桶与凭据初始化」）。
 
-当遇到“依赖服务已启动，但应用仍连接失败”的冷启动时序问题（例如 `connection refused`）时，可尝试在 `[Service]` 增加 health gate：
+**消费数据库的 unit 都要自己写 `postgres.service`，不要依赖 `initdb`/`migrate` 的传递依赖。** `langfuse-web`、`langfuse-worker`、`superset`、`superset-init` 这类单元不能只靠 `Requires=<service>-initdb.service` 间接依赖到 postgres：一旦 `initdb` 环节被调整，这条边会静默消失。S3 消费端同理：显式写 `silo.service`，并单独写该栈的 `<stack>-s3-init.service`。
+
+### 依赖就绪门禁
+
+`After=<dep>.service` 只保证依赖单元的 unit 处于 active。Podman 默认 sdnotify 在 conmon 拉起容器进程后就发 `READY=1`，所以它**不代表依赖服务已经能接受连接**。
+
+**默认做法：让被依赖服务自己声明就绪。** 给被依赖的 Quadlet 容器配健康检查，并用 `Notify=healthy` 把 `READY=1` 推迟到健康检查首次通过：
+
+```ini
+# 被依赖服务，例如 postgres.container
+[Container]
+HealthCmd=pg_isready -h 127.0.0.1 -U postgres -d postgres
+Notify=healthy
+```
+
+依赖方只留依赖即可：
+
+```ini
+[Unit]
+Requires=postgres.service
+After=postgres.service
+```
+
+> [!IMPORTANT]
+> `Notify=healthy` 依赖 `HealthCmd=`，且健康检查必须探测容器真正对外服务的通道。`pg_isready` 不带 `-h` 时走 Unix socket，会在 docker-library/postgres 首次初始化的“仅 socket 临时服务”阶段误报健康（TCP 还没监听），依赖方照样 `connection refused`；因此这里显式用 `-h 127.0.0.1`。
+
+> [!IMPORTANT]
+> 启用 `Notify=healthy` 后，systemd 的 `TimeoutStartSec`（默认 90s）要覆盖「拉镜像 + 首次 initdb + `HealthStartPeriod`」。冷启动明显变慢或超时的服务，在 `[Service]` 显式提高（例如 `TimeoutStartSec=5min`）。
+
+> [!NOTE]
+> `Notify=healthy` 只影响**首次** `READY=1`：后续变成 unhealthy 不会停容器（`HealthOnFailure=` 默认 `none`），也不会重新门禁。`Restart=always` 的依赖服务每次重新激活（手工 restart、崩溃后自动重启）都会再走一次门禁；依赖方保持 active 时重启则不会等待。
+
+### S3 桶与凭据初始化
+
+对象存储需要「建 bucket + 建用户 + 授权」才能用，用 oneshot 单元表达，消费端依赖它。具体实现见 [`docs/silo.md`](silo.md)。
+
+- **每个栈一个 init 单元**，不要集中成一个 bootstrap：集中式单元会引用所有栈的 secret，只启用部分栈时必然启动失败。
+- **不要用 `|| true` 之类静默放行**：初始化失败就应该让单元失败，消费端才不会带着坏凭据启动。用 `Restart=on-failure` + 幂等命令重试。
+- **初始化逻辑放进脚本文件**（只读挂载 + `Entrypoint=/bin/sh`），不要内联 `Exec=-c "..."`：secret 插值会同时穿过 Quadlet 与 systemd 两层引号。
+- **init 单元加入本栈子网即可**，`silo` 会由 `render_networks.sh` 自动加入同一子网（地址写 `http://silo:9000`，不要写 `localhost`）。
+- **init 成功不能代替就绪门禁**：消费端仍然需要 `After=silo.service`。
+
+**Fallback：被依赖服务无法暴露 readiness（例如没有可用的协议探针）时**，才在依赖方加带重试的 gate：
 
 ```ini
 [Service]
@@ -207,13 +249,14 @@ Type=oneshot
 RemainAfterExit=yes
 Restart=on-failure
 RestartSec=2s
-ExecStartPre=/usr/bin/podman healthcheck run systemd-postgres
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do podman healthcheck run systemd-postgres && exit 0; sleep 2; done; exit 1'
 ```
 
-前提是被依赖服务已配置 `HealthCmd=`（例如 `postgres.container`）。
+> [!WARNING]
+> 不要写一次性的 `ExecStartPre=/usr/bin/podman healthcheck run systemd-postgres`。`podman healthcheck run` 在容器处于 `starting`（含 `HealthStartPeriod`）期间必然返回非 0，一次性 gate 在冷启动时必失败；配合 `Requires=<dep>.service` 还会把依赖方一起打成 `dependency` 失败且**不再重试**，而 `<service>.target` 依然显示 `Reached`（退出码 0），故障完全静默。
 
-> [!TIP]
-> 该做法适合 `initdb`、`migrate` 这类一次性初始化任务。若当前服务未出现就绪时序问题，可先保持现状。
+> [!WARNING]
+> gate 必须有次数上限并显式 `exit 1`，否则 oneshot 会无限挂起，`systemctl --user start <service>.target` 一起卡住。
 
 参考：
 

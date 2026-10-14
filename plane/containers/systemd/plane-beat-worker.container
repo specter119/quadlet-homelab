@@ -1,8 +1,8 @@
 [Unit]
 Description=Plane Beat Worker (Scheduled Tasks)
 PartOf=plane.target
-Requires=postgres.service garage.service plane-redis.service plane-mq.service
-After=plane-api.service postgres.service garage.service plane-redis.service plane-mq.service
+Requires=postgres.service silo.service plane-s3-init.service plane-redis.service plane-mq.service
+After=plane-api.service postgres.service silo.service plane-s3-init.service plane-redis.service plane-mq.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -43,11 +43,11 @@ Environment=RABBITMQ_DEFAULT_USER=plane
 Environment=RABBITMQ_DEFAULT_VHOST=plane
 Environment=RABBITMQ_VHOST=plane
 
-# Garage/S3
+# Silo/S3
 Environment=USE_MINIO=1
-Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
+Environment=AWS_S3_ENDPOINT_URL=http://silo:9000
 Environment=AWS_S3_BUCKET_NAME=plane
-Environment=AWS_REGION=garage
+Environment=AWS_REGION=us-east-1
 Environment=FILE_SIZE_LIMIT=5242880
 
 # Application

@@ -1,8 +1,8 @@
 [Unit]
 Description=Langfuse Background Worker
 PartOf=langfuse.target
-Requires=langfuse-initdb.service garage.service langfuse-redis.service langfuse-clickhouse.service
-After=langfuse-initdb.service garage.service langfuse-redis.service langfuse-clickhouse.service
+Requires=postgres.service langfuse-initdb.service silo.service langfuse-s3-init.service langfuse-redis.service langfuse-clickhouse.service
+After=postgres.service langfuse-initdb.service silo.service langfuse-s3-init.service langfuse-redis.service langfuse-clickhouse.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -48,26 +48,26 @@ Environment=CLICKHOUSE_CLUSTER_ENABLED=false
 Environment=REDIS_HOST=redis
 Environment=REDIS_PORT=6379
 
-# S3/Garage Event Upload
+# S3/Silo Event Upload
 Environment=LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
-Environment=LANGFUSE_S3_EVENT_UPLOAD_REGION=garage
-Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://garage:3900
+Environment=LANGFUSE_S3_EVENT_UPLOAD_REGION=us-east-1
+Environment=LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://silo:9000
 Environment=LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
 Environment=LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
 
-# S3/Garage Media Upload
+# S3/Silo Media Upload
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
-Environment=LANGFUSE_S3_MEDIA_UPLOAD_REGION=garage
-Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://garage:3900
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_REGION=us-east-1
+Environment=LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://silo:9000
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
 Environment=LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
 
-# S3/Garage Batch Export
+# S3/Silo Batch Export
 Environment=LANGFUSE_S3_BATCH_EXPORT_ENABLED=false
 Environment=LANGFUSE_S3_BATCH_EXPORT_BUCKET=langfuse
 Environment=LANGFUSE_S3_BATCH_EXPORT_PREFIX=exports/
-Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=garage
-Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://garage:3900
+Environment=LANGFUSE_S3_BATCH_EXPORT_REGION=us-east-1
+Environment=LANGFUSE_S3_BATCH_EXPORT_ENDPOINT=http://silo:9000
 Environment=LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE=true
 
 # Dozzle group

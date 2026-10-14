@@ -13,7 +13,6 @@ Type=oneshot
 RemainAfterExit=yes
 Restart=on-failure
 RestartSec=2s
-ExecStartPre=/usr/bin/podman healthcheck run systemd-postgres
 
 [Container]
 Image=ghcr.io/omnivore-app/sh-migrate:latest

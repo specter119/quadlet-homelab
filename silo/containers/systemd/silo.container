@@ -1,0 +1,33 @@
+[Unit]
+Description=Shared S3-compatible Object Storage (Silo)
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+TimeoutStartSec=5min
+
+[Container]
+Image=docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+{{command_output "bash -lc './.dotter/render_networks.sh silo 2> >(tee -a ~/.cache/dotter-render.log >&2) || true'"}}
+NetworkAlias=silo
+Volume=silo-data.volume:/data
+Secret=silo-root-user,type=env,target=MINIO_ROOT_USER
+Secret=silo-root-password,type=env,target=MINIO_ROOT_PASSWORD
+Exec=server /data --console-address :9090
+
+# /minio/health/ready 无需认证
+HealthCmd=curl -f http://127.0.0.1:9000/minio/health/ready
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=10s
+Notify=healthy
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# No [Install] - started on-demand by dependent services

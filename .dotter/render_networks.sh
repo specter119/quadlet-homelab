@@ -41,7 +41,8 @@ needs_dep_conf() {
   [[ -f "$conf" ]] || return 1
   case "$dep" in
     postgres) re='postgresql://|postgres-password|postgres[_-]' ;;
-    garage) re='-s3-|s3-|garage|minio' ;;
+    garage) re='garage' ;;
+    silo) re='-s3-|s3-|silo|minio' ;;
   esac
   [[ -n "$re" ]] || return 1
   grep -Eq "$re" "$conf"

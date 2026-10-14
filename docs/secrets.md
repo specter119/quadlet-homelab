@@ -10,6 +10,8 @@
 ```
 .dotter/
 ├── secrets/
+│   ├── postgres.conf         # 共享数据库密钥定义
+│   ├── silo.conf             # 共享 S3 密钥定义（root 凭据）
 │   ├── langfuse.conf         # 密钥定义，提交 git
 │   ├── plane.conf
 │   └── omnivore.conf

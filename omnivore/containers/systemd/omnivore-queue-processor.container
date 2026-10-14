@@ -1,8 +1,8 @@
 [Unit]
 Description=Omnivore Queue Processor
 PartOf=omnivore.target
-Requires=omnivore-api.service omnivore-redis.service postgres.service garage.service
-After=omnivore-api.service omnivore-redis.service postgres.service garage.service
+Requires=omnivore-api.service omnivore-redis.service postgres.service silo.service omnivore-s3-init.service
+After=omnivore-api.service omnivore-redis.service postgres.service silo.service omnivore-s3-init.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -34,9 +34,9 @@ Environment=REDIS_URL=redis://redis:6379/0
 
 Environment=GCS_USE_LOCAL_HOST=true
 Environment=GCS_UPLOAD_BUCKET=omnivore
-Environment=AWS_REGION=garage
-Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
-Environment=LOCAL_MINIO_URL=http://garage:3900
+Environment=AWS_REGION=us-east-1
+Environment=AWS_S3_ENDPOINT_URL=http://silo:9000
+Environment=LOCAL_MINIO_URL=http://silo:9000
 
 Environment=CONTENT_FETCH_URL=http://content-fetch:8080/?token=omnivore_fetch_token
 Environment=EXPORT_QUEUE_NAME=omnivore-backend-queue

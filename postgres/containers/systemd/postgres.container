@@ -6,6 +6,7 @@ DefaultDependencies=false
 {{/if}}
 [Service]
 Restart=always
+TimeoutStartSec=5min
 [Container]
 Image=docker.io/pgvector/pgvector:pg17
 {{command_output "bash -lc './.dotter/render_networks.sh postgres 2> >(tee -a ~/.cache/dotter-render.log >&2) || true'"}}
@@ -13,7 +14,10 @@ NetworkAlias=postgres
 Volume=postgres-data.volume:/var/lib/postgresql/data
 Environment=POSTGRES_USER=postgres
 Secret=postgres-password,type=env,target=POSTGRES_PASSWORD
-HealthCmd=pg_isready -U postgres
+# 必须探 TCP：不带 -h 时 pg_isready 走 Unix socket，会在 docker-library/postgres
+# 首次 initdb 的“仅 socket 临时服务”阶段误报健康（此时 TCP 还没监听）
+HealthCmd=pg_isready -h 127.0.0.1 -U postgres -d postgres
+Notify=healthy
 HealthInterval=10s
 HealthTimeout=5s
 HealthRetries=5

@@ -101,24 +101,51 @@ mkdir -p "$HOME/.cache/dotter"
 echo "[pre-deploy] Checking shared trusted network policy..."
 check_trusted_source_ranges || warn "trusted network policy check failed; continuing deployment"
 
-# Parse enabled packages from local.toml
+# Parse enabled packages from local.toml, expanding the dotter dependency closure
+# (dotter deploys `depends` packages too, so their secret definitions must be processed).
 # Format: packages = ['traefik', 'silverbullet', 'dozzle', 'omnivore']
 parse_packages() {
-  python3 - <<'PY'
+  python3 - "$LOCAL_TOML" "$SOURCE_DIR/.dotter/global.toml" <<'PY'
+import sys
 import tomllib
 from pathlib import Path
 
-path = Path(".dotter/local.toml")
-if not path.exists():
+local_path = Path(sys.argv[1])
+global_path = Path(sys.argv[2])
+
+if not local_path.exists():
     print("")
     raise SystemExit(0)
-with path.open("rb") as fh:
+with local_path.open("rb") as fh:
     data = tomllib.load(fh)
 packages = data.get("packages", [])
-if isinstance(packages, list):
-    print(" ".join(str(p) for p in packages))
-else:
+if not isinstance(packages, list):
     print("")
+    raise SystemExit(0)
+
+enabled = [str(p) for p in packages]
+
+deps = {}
+if global_path.exists():
+    with global_path.open("rb") as fh:
+        global_data = tomllib.load(fh)
+    for name, table in global_data.items():
+        if not isinstance(table, dict):
+            continue
+        value = table.get("depends", [])
+        if isinstance(value, list):
+            deps[str(name)] = [str(item) for item in value]
+
+queue = list(enabled)
+seen = set(enabled)
+while queue:
+    current = queue.pop()
+    for dep in deps.get(current, []):
+        if dep not in seen:
+            seen.add(dep)
+            queue.append(dep)
+
+print(" ".join(enabled + sorted(seen - set(enabled))))
 PY
 }
 
@@ -193,12 +220,12 @@ process_conf() {
 }
 
 # Only process secrets for enabled packages
-# Process shared infrastructure first (postgres, garage) to ensure dependencies are available
-for pkg in postgres garage; do
+# Process shared infrastructure first (postgres, garage, silo) to ensure dependencies are available
+for pkg in postgres garage silo; do
   [[ " $ENABLED_PACKAGES " == *" $pkg "* ]] && process_conf "$SECRETS_DIR/$pkg.conf"
 done
 for pkg in $ENABLED_PACKAGES; do
-  [[ "$pkg" == "postgres" || "$pkg" == "garage" ]] && continue
+  [[ "$pkg" == "postgres" || "$pkg" == "garage" || "$pkg" == "silo" ]] && continue
   process_conf "$SECRETS_DIR/$pkg.conf"
 done
 

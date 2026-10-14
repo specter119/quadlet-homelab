@@ -1,5 +1,8 @@
 # Garage
 
+> [!NOTE]
+> 已不再被任何包依赖，共享 S3 见 [`docs/silo.md`](silo.md)。
+
 共享 S3 兼容存储，供 Langfuse 等服务使用。
 
 ## 偏离默认模板

@@ -22,7 +22,8 @@ NetworkAlias=proxy
 # Proxy environment
 Environment=APP_DOMAIN=plane.{{domain}}
 Environment=FILE_SIZE_LIMIT=5242880
-Environment=BUCKET_NAME=uploads
+# 必须与 plane-api 的 AWS_S3_BUCKET_NAME 一致（Caddyfile 用 /{$BUCKET_NAME}/* 反代到对象存储）
+Environment=BUCKET_NAME=plane
 Environment=SITE_ADDRESS=:80
 
 # Dozzle group

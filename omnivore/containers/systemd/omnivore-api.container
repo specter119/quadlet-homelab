@@ -1,8 +1,8 @@
 [Unit]
 Description=Omnivore API Server
 PartOf=omnivore.target
-Requires=postgres.service garage.service omnivore-redis.service omnivore-migrate.service
-After=postgres.service garage.service omnivore-redis.service omnivore-migrate.service
+Requires=postgres.service silo.service omnivore-s3-init.service omnivore-redis.service omnivore-migrate.service
+After=postgres.service silo.service omnivore-s3-init.service omnivore-redis.service omnivore-migrate.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -41,12 +41,12 @@ Environment=IMAGE_PROXY_URL=https://omnivore-api.{{domain}}/images
 # Redis
 Environment=REDIS_URL=redis://redis:6379/0
 
-# S3/Garage
+# S3/Silo
 Environment=GCS_USE_LOCAL_HOST=true
 Environment=GCS_UPLOAD_BUCKET=omnivore
-Environment=AWS_REGION=garage
-Environment=AWS_S3_ENDPOINT_URL=http://garage:3900
-Environment=LOCAL_MINIO_URL=http://garage:3900
+Environment=AWS_REGION=us-east-1
+Environment=AWS_S3_ENDPOINT_URL=http://silo:9000
+Environment=LOCAL_MINIO_URL=http://silo:9000
 
 # Features
 Environment=AUTO_VERIFY=true

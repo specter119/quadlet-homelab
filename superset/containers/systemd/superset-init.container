@@ -1,8 +1,8 @@
 [Unit]
 Description=Superset database migration and initialization
 PartOf=superset.target
-Requires=superset-initdb.service
-After=superset-initdb.service
+Requires=postgres.service superset-initdb.service
+After=postgres.service superset-initdb.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]

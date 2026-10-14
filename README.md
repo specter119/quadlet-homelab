@@ -14,7 +14,8 @@
 | Tailscale  | 远程访问 homelab（Split DNS）                          |
 | Traefik    | 反向代理，统一域名访问，自动 HTTPS                     |
 | PostgreSQL | 共享数据库 (pgvector)，供 Langfuse/Plane/Omnivore 使用 |
-| Garage     | 共享 S3 存储，替代各服务独立的 MinIO                   |
+| Silo       | 共享 S3 存储，供 Langfuse/Plane/Omnivore 使用          |
+| Garage     | 历史 S3 存储，已不再被依赖                             |
 | Dozzle     | 容器日志查看器                                         |
 | Log Notify | 按服务声明的日志正则触发桌面通知（如验证码）           |
 

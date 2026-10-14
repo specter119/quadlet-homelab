@@ -49,6 +49,12 @@ nested_value = { key_b = "overridden" }
 
 - hook 脚本不负责补写变量默认值；变量行为由模板和本文件约定保证
 
+## 包依赖（depends）
+
+`[<package>] depends = [...]` 不只是变量求值顺序：**被依赖的 package 会随依赖方一起部署**。例如 `langfuse` 依赖 `postgres` 与 `silo`，只在 `.dotter/local.toml` 的 `packages` 里启用 `langfuse` 即可，不需要把共享基础设施也写进去。
+
+`.dotter/pre_deploy.sh` 按同样规则展开依赖闭包（`parse_packages()`），所以被依赖包的 secret（如 `silo.conf`）也会被创建，并优先于业务栈处理。
+
 ## 当前变量 Schema
 
 | 变量                            | 类型             | 来源             | 说明                                                                                               |

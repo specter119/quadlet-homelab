@@ -1,8 +1,8 @@
 [Unit]
 Description=Apache Superset BI Platform
 PartOf=superset.target
-Requires=superset-init.service
-After=superset-init.service
+Requires=postgres.service superset-init.service
+After=postgres.service superset-init.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]

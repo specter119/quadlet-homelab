@@ -429,12 +429,12 @@ Label=traefik.http.services.myservice-api.loadbalancer.server.port=8888
 
 ## 共享基础设施访问
 
-PostgreSQL 和 Garage 作为共享基础设施，通过 `render_networks.sh` 动态加入依赖它们的业务子网，**不经过 Traefik 代理**。
+PostgreSQL 和 Silo 作为共享基础设施，通过 `render_networks.sh` 动态加入依赖它们的业务子网，**不经过 Traefik 代理**。
 
 | 服务       | 访问方式        | 说明                 |
 | ---------- | --------------- | -------------------- |
 | PostgreSQL | `postgres:5432` | 直接通过业务子网访问 |
-| Garage S3  | `garage:3900`   | 直接通过业务子网访问 |
+| Silo S3    | `silo:9000`     | 直接通过业务子网访问 |
 
 详见 [docs/quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 

@@ -28,11 +28,18 @@ garage = '~/.config'
 target = '~/.config/garage'
 type = 'template'
 
+[silo.files]
+silo = '~/.config'
+
+[silo.files.'silo/silo']
+target = '~/.config/silo'
+type = 'template'
+
 [silverbullet.files]
 silverbullet = '~/.config'
 
 [langfuse]
-depends = ["postgres", "garage"]
+depends = ["postgres", "silo"]
 
 [langfuse.files]
 langfuse = '~/.config'
@@ -41,13 +48,13 @@ langfuse = '~/.config'
 dozzle = '~/.config'
 
 [omnivore]
-depends = ["postgres", "garage"]
+depends = ["postgres", "silo"]
 
 [omnivore.files]
 omnivore = '~/.config'
 
 [plane]
-depends = ["postgres", "garage"]
+depends = ["postgres", "silo"]
 
 [plane.files]
 plane = '~/.config'
