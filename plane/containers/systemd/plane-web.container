@@ -12,7 +12,7 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
-Image=artifacts.plane.so/makeplane/plane-frontend:stable
+Image=docker.io/makeplane/plane-frontend:stable
 Network=plane.network
 NetworkAlias=web
 

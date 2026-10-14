@@ -12,7 +12,7 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
-Image=artifacts.plane.so/makeplane/plane-space:stable
+Image=docker.io/makeplane/plane-space:stable
 Network=plane.network
 NetworkAlias=space
 

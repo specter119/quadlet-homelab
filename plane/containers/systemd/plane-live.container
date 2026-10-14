@@ -12,9 +12,9 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
-Image=artifacts.plane.so/makeplane/plane-live:stable
+Image=docker.io/makeplane/plane-live:stable
 
-Secret=plane-live-secret-key,type=env,target=LIVE_SENTRY_SECRET_KEY
+Secret=plane-live-secret-key,type=env,target=LIVE_SERVER_SECRET_KEY
 
 Network=plane.network
 NetworkAlias=live

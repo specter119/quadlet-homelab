@@ -1,8 +1,8 @@
 [Unit]
 Description=Plane Database Migrator
 PartOf=plane.target
-Requires=postgres.service silo.service plane-s3-init.service plane-redis.service
-After=postgres.service silo.service plane-s3-init.service plane-redis.service
+Requires=postgres.service plane-initdb.service silo.service plane-s3-init.service plane-redis.service
+After=postgres.service plane-initdb.service silo.service plane-s3-init.service plane-redis.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
@@ -16,10 +16,11 @@ Restart=on-failure
 RestartSec=2s
 
 [Container]
-Image=artifacts.plane.so/makeplane/plane-backend:stable
+Image=docker.io/makeplane/plane-backend:stable
 
 Secret=plane-secret-key,type=env,target=SECRET_KEY
 Secret=plane-rabbitmq-password,type=env,target=RABBITMQ_DEFAULT_PASS
+Secret=plane-rabbitmq-password,type=env,target=RABBITMQ_PASSWORD
 Secret=plane-s3-access-key,type=env,target=AWS_ACCESS_KEY_ID
 Secret=plane-s3-secret-key,type=env,target=AWS_SECRET_ACCESS_KEY
 
@@ -28,6 +29,7 @@ Network=plane.network
 Exec=./bin/docker-entrypoint-migrator.sh
 
 Environment=PGHOST=postgres
+Environment=POSTGRES_HOST=postgres
 Environment=PGDATABASE=plane
 Environment=POSTGRES_USER=postgres
 Environment=POSTGRES_DB=plane
@@ -42,6 +44,7 @@ Environment=REDIS_URL=redis://plane-redis:6379/
 Environment=RABBITMQ_HOST=plane-mq
 Environment=RABBITMQ_PORT=5672
 Environment=RABBITMQ_DEFAULT_USER=plane
+Environment=RABBITMQ_USER=plane
 Environment=RABBITMQ_DEFAULT_VHOST=plane
 Environment=RABBITMQ_VHOST=plane
 

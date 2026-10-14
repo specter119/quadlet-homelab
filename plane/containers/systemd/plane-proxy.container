@@ -14,7 +14,7 @@ DefaultDependencies=false
 Restart=always
 
 [Container]
-Image=artifacts.plane.so/makeplane/plane-proxy:stable
+Image=docker.io/makeplane/plane-proxy:stable
 Network=plane.network
 Network=traefik.network
 NetworkAlias=proxy
