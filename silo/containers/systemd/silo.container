@@ -14,6 +14,8 @@ TimeoutStartSec=5min
 Image=docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
 {{command_output "bash -lc './.dotter/render_networks.sh silo 2> >(tee -a ~/.cache/dotter-render.log >&2) || true'"}}
 NetworkAlias=silo
+# plane-proxy 上游 Caddyfile 把对象存储主机写死为 plane-minio:9000
+NetworkAlias=plane-minio
 Volume=silo-data.volume:/data
 Secret=silo-root-user,type=env,target=MINIO_ROOT_USER
 Secret=silo-root-password,type=env,target=MINIO_ROOT_PASSWORD

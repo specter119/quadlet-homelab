@@ -39,9 +39,9 @@ podman exec systemd-silo sh -c '
 
 需要 Web Console 时，临时在 `silo.container` 加 `PublishPort=127.0.0.1:9001:9090`，`systemctl --user daemon-reload && systemctl --user restart silo.service`，用完删掉。
 
-## 已知问题
+## Plane proxy 的 `plane-minio` 别名
 
-`plane-proxy` 的 `/plane/*` 路径不可用：上游 Caddyfile 把对象存储主机硬编码为 `plane-minio:9000`，本仓库网络里没有该名字。只影响 proxy 直读对象存储的路径，Plane 经 API 的上传/下载不受影响。
+上游 `plane-proxy` 的 Caddyfile 把对象存储主机写死为 `plane-minio:9000`（浏览器预签名上传/下载走 `/<bucket>/*` → 该主机）。`silo.container` 因此额外声明 `NetworkAlias=plane-minio`，别名对 silo 加入的所有网络生效，只有 `plane.network` 里的 proxy 会用到。
 
 ## 参考
 
