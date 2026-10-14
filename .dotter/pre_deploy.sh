@@ -197,7 +197,7 @@ process_conf() {
 
   log "=== $service ==="
 
-  while IFS=: read -r name type param; do
+  while IFS=: read -r name type param || [[ -n "$name" ]]; do
     [[ -z "$name" || "$name" =~ ^[[:space:]]*# ]] && continue
     [[ "$type" == "computed" ]] && continue
 
@@ -209,7 +209,7 @@ process_conf() {
     create_secret "$name" "$value" && SECRETS["$name"]="$value" || SECRETS["$name"]=$(get_secret "$name")
   done <"$conf"
 
-  while IFS=: read -r name type param; do
+  while IFS=: read -r name type param || [[ -n "$name" ]]; do
     [[ "$type" != "computed" ]] && continue
     local value="$param"
     for key in "${!SECRETS[@]}"; do
