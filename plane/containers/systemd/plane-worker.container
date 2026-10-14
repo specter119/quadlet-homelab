@@ -1,8 +1,8 @@
 [Unit]
 Description=Plane Background Worker
 PartOf=plane.target
-Requires=postgres.service silo.service plane-s3-init.service plane-redis.service plane-mq.service
-After=plane-api.service postgres.service silo.service plane-s3-init.service plane-redis.service plane-mq.service
+Requires=postgres.service silo.service plane-s3-init.service plane-redis.service plane-mq.service plane-migrator.service
+After=plane-api.service postgres.service silo.service plane-s3-init.service plane-redis.service plane-mq.service plane-migrator.service
 
 {{#if (command_success "uname -r | grep -qi wsl")}}
 [Quadlet]
