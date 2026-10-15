@@ -9,7 +9,7 @@ DefaultDependencies=false
 
 {{/if}}
 [Service]
-ExecStartPre=/usr/bin/mkdir -p %D/magpie
+ExecStartPre=/usr/bin/mkdir -p %E/magpie
 Restart=always
 
 [Container]
@@ -18,7 +18,9 @@ Pull=newer
 Network=traefik.network
 UserNS=keep-id:uid=65532,gid=65532
 User=65532:65532
-Volume=%D/magpie:/config:Z
+# Persistence layout: see docs/magpie.md
+Volume=magpie-data.volume:/config
+Volume=%E/magpie:/config/magpie:Z
 # Corporate MITM proxy: container (Distroless) has no company roots, so every
 # HTTPS call (plugin market list, bun download, models.dev) fails TLS verify.
 # Reuse the host's updated CA bundle for the files SSL_CERT_FILE points at.

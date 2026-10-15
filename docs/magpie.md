@@ -5,14 +5,19 @@
 ## 容器部署差异
 
 - 使用上游 GHCR 镜像，以 `magpie web --addr 0.0.0.0:3430 --no-open` 提供浏览器界面；Traefik 只代理容器端口 `3430`。
-- 上游镜像以 UID `65532` 运行，配置目录由 `XDG_CONFIG_HOME=/config` 指定。本服务把 `%D/magpie` 持久化挂载到 `/config`，并用 `UserNS=keep-id` 映射目录权限。
+
+- 上游镜像以 UID `65532` 运行、`XDG_CONFIG_HOME=/config`，所有 XDG 目录都在 `/config` 之下。持久化拆成两层，并用 `UserNS=keep-id` 映射目录权限：
+
+  - `/config` 是命名卷（`magpie-data.volume` → `systemd-magpie-data`），放 `cache/`（models.dev 目录、bun）、`state/`、`data/`、`home/`。
+  - 宿主 `~/.config/magpie`（`%E/magpie`）bind 到 `/config/magpie`，**嵌套覆盖卷内同名目录**，与宿主机 `magpie` CLI 共用。
+  - `ExecStartPre` 先 `mkdir -p %E/magpie`：bind 源不存在时 podman 以 125 退出。
+
 - Web UI 登录 key 由 `.dotter/secrets/magpie.conf` 初始化为 Podman Secret `magpie-web-key`，通过 `MAGPIE_WEB_KEY` 固定下来。首次访问使用 `https://magpie.<domain>/?k=<key>`；应用会把 key 换成浏览器 cookie。
 
 > [!WARNING]
 > 上游会把含登录 key 的链接打印到容器标准输出；Dozzle 可以查看该日志。因此能访问 Dozzle 日志的用户也能取得 Magpie Web UI key。只向可信管理员开放 Dozzle。
 
 - 模型网关监听容器端口 `3425`，只发布到宿主机回环地址 `127.0.0.1:3425`，不经 Traefik 对外路由；宿主机上的 agent 可使用 `http://127.0.0.1:3425/v1`。同在 `traefik.network` 的容器仍可直接访问 Magpie 容器端口。若需从其他设备调用网关，先按上游的 LAN sharing 说明启用带 key 的访问，再单独配置并验证网关路由。
-- 容器内启动的订阅 OAuth 登录无法完成回调；按上游说明，在安装了对应 CLI 且已登录的本机导入凭据，或在本机 Magpie 完成登录后导入。
 
 ## 公司网络下的 npm 全链路（插件安装 + 元数据）
 
@@ -20,10 +25,10 @@
 
 ### 链路一：bun 安装插件 → 项目级 `bunfig.toml`
 
-`magpie plugin add` / Web UI 安装最终都通过 bun 落包，bun 的 registry 优先级是：**env (`NPM_CONFIG_REGISTRY`/`BUN_CONFIG_REGISTRY`) > 项目级 `bunfig.toml` > 全局 `~/.bunfig.toml`**。本服务采用**项目级 bunfig**（不设任何 npm env），持久化在 magic 数据卷内，随 `%D/magpie` 备份迁移：
+`magpie plugin add` / Web UI 安装最终都通过 bun 落包，bun 的 registry 优先级是：**env (`NPM_CONFIG_REGISTRY`/`BUN_CONFIG_REGISTRY`) > 项目级 `bunfig.toml` > 全局 `~/.bunfig.toml`**。本服务采用**项目级 bunfig**（不设任何 npm env），落在宿主 `~/.config/magpie/plugins/`：
 
 ```toml
-# /config/magpie/plugins/bunfig.toml（宿主 ~/.local/share/magpie/magpie/plugins/）
+# /config/magpie/plugins/bunfig.toml（宿主 ~/.config/magpie/plugins/）
 # url 以 .dotter/local.toml 的 artifactory_url_base / artifactory_registry_path 为准
 [install.registry]
 url = "{{artifactory_url_base}}{{artifactory_registry_path}}/"
