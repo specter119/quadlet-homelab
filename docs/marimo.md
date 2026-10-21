@@ -7,7 +7,7 @@ Base docs: [`docs/quadlet.md`](quadlet.md), [`docs/dotter.md`](dotter.md)
 
 ## 当前差异
 
-- 镜像使用 `docker.io/astral/uv:python3.13-trixie`
+- 镜像使用 `docker.io/astral/uv:python3.14-trixie`
 - 容器入口直接执行 `uvx ... marimo edit --headless`
 - 默认持久化以下路径：
   - `%D/marimo:/workspace:Z`

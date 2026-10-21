@@ -16,7 +16,7 @@ Restart=always
 {{#if (command_success "timedatectl show -p Timezone --value")}}
 Environment=TZ={{command_output "timedatectl show -p Timezone --value"}}
 {{/if}}
-Image=docker.io/astral/uv:python3.13-trixie
+Image=docker.io/astral/uv:python3.14-trixie
 Network=traefik.network
 
 # Data and config mounts
