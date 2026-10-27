@@ -10,6 +10,21 @@
 > [!IMPORTANT]
 > 修改模板变量前，先确认是否符合 Dotter 的变量合并规则：package 默认值来自 `.dotter/global.toml` 的 `[package.variables]`，本机覆盖只来自 `.dotter/local.toml` 的顶层 `[variables]`。
 
+## 文件映射
+
+`.dotter/global.toml` 的 `[<package>.files]` 遵循**最少规则**：用上级规则覆盖整个 package，只有和上级规则冲突时才多写一行。
+
+```toml
+[log-notify.files]
+log-notify = '~/.config'                          # 整包：systemd/ 等子目录都落在 ~/.config 下
+'log-notify/runtime' = '~/.local/lib/log-notify'  # 冲突：目标根目录不同
+```
+
+- 默认写一行 `<package> = '~/.config'`，package 内按 `~/.config` 下的相对路径组织。新增子目录（如 `<service>/log-notify/rules.d/`）不需要改 `global.toml`
+- 只有两种情况才加一行：**目标根目录不同**（`runtime/` 部署到 `~/.local/lib/<package>`），或**部署类型不同**（强制 `type = 'template'`，用于挂进容器的配置目录，如 `traefik/traefik`，以及含模板文件的构建目录，如 `deepseek-harness/runtime`）
+- 更具体的路径覆盖上级规则：Dotter 按路径排序展开 `files`，子路径后展开并覆盖父路径展开出的同一目标
+- 不为单个文件写精确映射；含 `{{` 的文件会自动按模板渲染，不必显式声明 `type = 'template'`
+
 ## 覆盖顺序
 
 ```toml

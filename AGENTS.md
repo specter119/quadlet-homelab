@@ -6,7 +6,7 @@
 | --------------------- | ----------------------------------------------------------------- |
 | README.md             | 项目简介、服务列表（只保留 description）                          |
 | AGENTS.md             | 文档契约、冷启动/维护入口、写作规范、新建服务检查清单             |
-| docs/dotter.md        | Dotter 变量契约、覆盖规则、共享/私有变量约定                      |
+| docs/dotter.md        | Dotter 文件映射规则、变量契约、覆盖规则、共享/私有变量约定        |
 | docs/quadlet.md       | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
 | docs/secrets.md       | Secrets 格式定义、一致性检查                                      |
 | docs/hooks.md         | pre/post_deploy 脚本、handlebars 转义                             |
@@ -112,7 +112,7 @@
        └── <service>.container
    ```
 
-1. **更新 `.dotter/global.toml`** - 添加部署配置
+1. **更新 `.dotter/global.toml`** - 添加部署配置（映射规则见 [docs/dotter.md](docs/dotter.md#%E6%96%87%E4%BB%B6%E6%98%A0%E5%B0%84)）
 
    ```toml
    [<service>.files]

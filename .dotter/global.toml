@@ -81,17 +81,15 @@ unsloth = '~/.config'
 volumes = []
 
 [nowledge-mem.files]
+nowledge-mem = '~/.config'
 'nowledge-mem/runtime' = '~/.local/lib/nowledge-mem'
-'nowledge-mem/systemd' = '~/.config/systemd'
-'nowledge-mem/containers' = '~/.config/containers'
-'nowledge-mem/environment.d/nowledge.conf' = { target = '~/.config/environment.d/nowledge.conf', type = 'template' }
 
 [nowledge-mem.variables]
 nmem_api_key = ""
 
 [log-notify.files]
+log-notify = '~/.config'
 'log-notify/runtime' = '~/.local/lib/log-notify'
-'log-notify/systemd' = '~/.config/systemd'
 
 [suwayomi.files]
 suwayomi = '~/.config'
@@ -112,9 +110,8 @@ magpie = '~/.config'
 depends = ["traefik"]
 
 [deepseek-harness.files]
+deepseek-harness = '~/.config'
 'deepseek-harness/runtime' = { target = '~/.local/lib/deepseek-harness', type = 'template' }
-'deepseek-harness/containers' = '~/.config/containers'
-'deepseek-harness/systemd' = '~/.config/systemd'
 
 [deepseek-harness.variables.deepseek-harness]
 volumes = []
