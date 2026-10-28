@@ -6,8 +6,8 @@ RUN apt-get update \
     && apt-get install --no-install-recommends --yes g++ make python3 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package.json package-lock.json ./
-RUN {{#if (command_success "test -f \"$HOME/.npmrc\"")}}--mount=type=secret,id=npmrc,target=/root/.npmrc {{/if}}npm ci --omit=dev --no-audit --no-fund \
+COPY package.json ./
+RUN {{#if (command_success "test -f \"$HOME/.npmrc\"")}}--mount=type=secret,id=npmrc,target=/root/.npmrc {{/if}}npm install --omit=dev --no-package-lock --no-audit --no-fund \
     && npm cache clean --force
 
 FROM node:24-slim
@@ -19,7 +19,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/dsh/node_modules ./node_modules
-COPY package.json quadlet-web.patch.yml run-web.sh ./
+COPY package.json run-web.sh ./
 
 ENV DSH_HOME=/var/lib/dsh
 ENV NODE_ENV=production

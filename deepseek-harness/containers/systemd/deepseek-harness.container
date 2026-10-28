@@ -24,8 +24,8 @@ UserNS=keep-id
 NoNewPrivileges=true
 WorkingDir=/workspace
 
-# Loopback-only publish for the privileged /api face (settings/credentials are
-# pinned to loopback by dsh; PublishPort keeps the host port binding local).
+# Loopback-only publish for direct local access, bypassing Traefik (WSL localhost
+# forwarding); never publish on all interfaces.
 PublishPort=127.0.0.1:3080:3080
 
 Environment=DSH_HOME=/var/lib/dsh
