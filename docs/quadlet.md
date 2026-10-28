@@ -225,6 +225,11 @@ After=postgres.service
 > [!IMPORTANT]
 > `Notify=healthy` 依赖 `HealthCmd=`，且健康检查必须探测容器真正对外服务的通道。`pg_isready` 不带 `-h` 时走 Unix socket，会在 docker-library/postgres 首次初始化的“仅 socket 临时服务”阶段误报健康（TCP 还没监听），依赖方照样 `connection refused`；因此这里显式用 `-h 127.0.0.1`。
 
+> [!WARNING]
+> `HealthCmd=` 的值如果**以双引号结尾**（如 `node -e "..."`、`python3 -c "..."`），Quadlet（podman 5.4）生成 `--health-cmd` 时会丢掉最后那个 `"`，容器内报 `Syntax error: Unterminated quoted string`，健康检查永远失败，`Notify=healthy` 的单元因此卡在 activating。在引号后追加 ` || exit 1` 让值不以引号结尾即可规避（语义不变）。需要内联脚本时优先用这种写法，而不是改成单引号包整体。
+>
+> 另外，健康检查只能用**容器镜像里已有的**工具：例如 `risingwavelabs/risingwave` 没有 `psql` / `pg_isready`，但有 `python3`。
+
 > [!IMPORTANT]
 > 启用 `Notify=healthy` 后，systemd 的 `TimeoutStartSec`（默认 90s）要覆盖「拉镜像 + 首次 initdb + `HealthStartPeriod`」。冷启动明显变慢或超时的服务，在 `[Service]` 显式提高（例如 `TimeoutStartSec=5min`）。
 
@@ -288,6 +293,20 @@ Volume=xxx-data.volume:/var/lib/xxx
 1. 第三方工具需要读取日志文件（如日志分析器）
 
 若无上述情况，**禁止创建 log volume**，避免数据重复和磁盘浪费。
+
+### 宿主 bind 源目录必须预先创建
+
+`Volume=%D/xxx:/path` 这类 bind mount 的宿主源不存在时，podman 以 125 退出（`statfs ...: no such file or directory`），Quadlet 不会自动创建。用 `ExecStartPre` 兜底：
+
+```ini
+[Service]
+ExecStartPre=/usr/bin/mkdir -p %D/xxx
+```
+
+specifier：`%E` = `~/.config`，`%D` = `~/.local/share`，`%C` = `~/.cache`，`%S` = `~/.local/state`。
+
+> [!NOTE]
+> 只对由容器写入的数据目录这样做。由 dotter 部署的配置文件/目录（如 `%E/garage/garage.toml`）和用户自行提供的文件（如 `%h/.netrc`、Traefik 证书目录）不要 `mkdir`，缺失应当直接失败。
 
 ## Label 规范
 
