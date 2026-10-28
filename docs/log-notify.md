@@ -18,7 +18,7 @@ flowchart LR
 | 规则 | `<service>/log-notify/rules.d/*` | `~/.config/log-notify/rules.d/`             |
 
 - 启用：`.dotter/local.toml` 的 `packages` 加 `log-notify`；自启动则把它加进 `autostart_services`
-- 规则文件跟随**服务自己的 package** 部署：服务没启用，规则就不会生效
+- 规则文件跟随**服务自己的 package** 部署：服务没启用，规则就不会生效。新增规则只需创建 `<service>/log-notify/rules.d/<service>.toml`，服务 package 已整包映射到 `~/.config`（见 [`docs/dotter.md`](dotter.md#%E6%96%87%E4%BB%B6%E6%98%A0%E5%B0%84)），不用改 `global.toml`
 - 规则只在启动时加载，改动后执行 `systemctl --user restart log-notify`
 
 ## 规则格式
@@ -42,18 +42,23 @@ body = "{code}  ({who})"          # 用命名分组格式化，{0} 是整段匹�
 
 本仓库不实现通知发送，直接调用外部 dotfiles 仓库部署的 [`notify.sh`](https://github.com/specter119/dotfiles/blob/master/agent/share/cli-hooks/notify.sh)（WSL 弹 Windows 通知，Linux 走 `notify-send`）。标题通过 `NOTIFICATION_TITLE` 传入，找不到它时退回 `notify-send`。
 
+> [!NOTE]
+> WSL 下 user manager 的 `PATH` 不含 `/mnt/c`，`log-notify.service` 因此在 WSL 分支显式把 `powershell.exe` 所在目录加进 `Environment=PATH=`，否则 `notify.sh` 会报 `PowerShell not available`。
+
 > [!IMPORTANT]
 > 依赖 [specter119/dotfiles](https://github.com/specter119/dotfiles) 的 `agent` package 把它部署到 `~/.local/share/cli-hooks/notify.sh`。通知相关的行为变更请改那边，不要在本仓库重复实现。路径可用环境变量 `LOG_NOTIFY_SH` 覆盖。
 
 ## 已接入
 
-| 服务    | 规则                                                                                                           |
-| ------- | -------------------------------------------------------------------------------------------------------------- |
-| Multica | server 未配置 SMTP/Resend 时，验证码只打印为 `[DEV] Verification code for <email>: <code>`；配置后规则不再命中 |
+| 服务             | 规则                                                                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Multica          | server 未配置 SMTP/Resend 时，验证码只打印为 `[DEV] Verification code for <email>: <code>`；配置后规则不再命中                                      |
+| DeepSeek Harness | 每次启动生成新的访问 token，只打印在日志里；规则推送 `http://127.0.0.1:3080/?token=<token>`（见 [`docs/deepseek-harness.md`](deepseek-harness.md)） |
 
 ## TODO
 
-- Magpie：目前没有已知的需要通知的日志模式。启动日志只有带 `?k=<MAGPIE_WEB_KEY>` 的访问链接，不适合推送。发现合适的事件（如上游 key 失效）后再补 `magpie/log-notify/rules.d/magpie.toml`
+- 通知点击直接打开链接：DeepSeek Harness 的 token 有 43 个字符，Windows 气泡里的文字无法复制，目前只能回到日志取链接。`notify.sh` 的 WSL 分支约 1 秒后销毁通知图标，点击回调拿不到事件，需要在 dotfiles 的 `notify.sh` 里解决，本仓库不重复实现
+- Magpie：目前没有已知的需要通知的日志模式。启动日志只有带 `?k=<MAGPIE_WEB_KEY>` 的访问链接；该 key 固定且已在 Podman Secret 中，与每次启动都变的 dsh token 不同，推送它没有收益。发现合适的事件（如上游 key 失效）后再补 `magpie/log-notify/rules.d/magpie.toml`
 
 ## 参考
 

@@ -1,0 +1,7 @@
+# dsh 每次启动生成新的访问 token，只打印在日志里（见 docs/deepseek-harness.md）。
+# 日志里的 URL 是容器内 IP，推送时换成宿主 PublishPort 的 loopback 地址。
+[[rule]]
+unit = "deepseek-harness.service"
+pattern = 'dsh web: http://\S+:3080/\?token=(?P<token>[A-Za-z0-9_-]+)'
+title = "DeepSeek Harness 登录链接"
+body = "http://127.0.0.1:3080/?token={token}"
