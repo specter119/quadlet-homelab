@@ -16,6 +16,9 @@ Image=docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
 NetworkAlias=silo
 # plane-proxy 上游 Caddyfile 把对象存储主机写死为 plane-minio:9000
 NetworkAlias=plane-minio
+# 浏览器直取预签名 URL 需要 silo 对客户端可达（S3 API 本身不会写到浏览器）。
+# 路由按 bucket 路径前缀收窄，见下方 Traefik labels。
+Network=traefik.network
 Volume=silo-data.volume:/data
 Secret=silo-root-user,type=env,target=MINIO_ROOT_USER
 Secret=silo-root-password,type=env,target=MINIO_ROOT_PASSWORD
@@ -31,5 +34,22 @@ Notify=healthy
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet
+
+# Traefik：只放行 raft 的附件桶（path-style 请求形如 /<bucket>/<key>），
+# 不是把整个 S3 API 暴露出去。预签名是 SigV4，Traefik 不重写 path、保留原始 Host，
+# 所以签名仍然有效（plane-proxy 走 Caddy 时同样靠这一点）。
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+Label=traefik.http.routers.raft-objects-http.entrypoints=http
+Label=traefik.http.routers.raft-objects-http.middlewares=redir-https@file
+Label=traefik.http.routers.raft-objects-http.rule="Host(`silo.{{domain}}`) && PathPrefix(`/raft`)"
+Label=traefik.http.routers.raft-objects-http.service=noop@internal
+
+Label=traefik.http.routers.raft-objects-https.entrypoints=https
+Label=traefik.http.routers.raft-objects-https.tls=true
+Label=traefik.http.routers.raft-objects-https.middlewares=homelab-internal@file
+Label=traefik.http.routers.raft-objects-https.rule="Host(`silo.{{domain}}`) && PathPrefix(`/raft`)"
+Label=traefik.http.services.raft-objects.loadbalancer.server.port=9000
 
 # No [Install] - started on-demand by dependent services
