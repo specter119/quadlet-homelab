@@ -10,6 +10,7 @@ DefaultDependencies=false
 
 {{/if}}
 [Service]
+ExecStartPre=/usr/bin/mkdir -p %E/co.nowledge.mem.desktop %D/NowledgeGraph %C/nowledge-graph %C/huggingface
 Restart=always
 
 [Container]

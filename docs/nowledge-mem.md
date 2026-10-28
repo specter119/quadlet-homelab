@@ -20,6 +20,8 @@ Base docs: [`docs/quadlet.md`](quadlet.md)
 - `~/.cache/nowledge-graph` → `/var/cache/nowledge-mem`
 - `~/.cache/huggingface` → `/var/cache/nowledge-mem/huggingface`（子挂载覆盖）
 
+`ExecStartPre=/usr/bin/mkdir -p ...` 会在启动前创建上述四个宿主目录：bind 源不存在时 podman 以 125 退出（`statfs ...: no such file or directory`），Quadlet 的 `Volume=` 不会自动创建宿主目录。
+
 > [!WARNING]
 > 不要只保留配置目录。记忆数据库、索引和模型缓存都在上述目录里，删错会导致重新下载模型或丢失数据。
 

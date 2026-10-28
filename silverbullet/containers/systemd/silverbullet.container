@@ -9,6 +9,7 @@ DefaultDependencies=false
 
 {{/if}}
 [Service]
+ExecStartPre=/usr/bin/mkdir -p %D/silverbullet
 Environment=PUID=1000
 Restart=always
 
