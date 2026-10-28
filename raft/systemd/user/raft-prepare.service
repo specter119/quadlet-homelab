@@ -1,0 +1,16 @@
+[Unit]
+Description=Build Raft server, web and RisingWave bootstrap images
+{{#unless (command_success "uname -r | grep -qi wsl")}}
+Wants=podman-user-wait-network-online.service
+After=podman-user-wait-network-online.service
+{{/unless}}
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# 冷启动要 clone 上游快照 + 在内网镜像上跑完整 pnpm install（约 5-10 分钟），
+# 远超 oneshot 的默认超时。
+TimeoutStartSec=30min
+Environment=RAFT_WEB_API_URL=https://raft-api.{{domain}}
+Environment=RAFT_SOURCE_TAG={{raft.raft_source_tag}}
+ExecStart=/usr/bin/bash %h/.local/lib/raft/prepare-images.sh

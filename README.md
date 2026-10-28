@@ -36,6 +36,7 @@
 | Phoenix          | LLM tracing / eval 可观测性（OTLP host ingress 按需启用） |
 | DeepSeek Harness | DeepSeek AI Agent Web UI                                  |
 | Magpie           | AI Agent 模型管理 Web UI                                  |
+| Raft             | 人类 + AI Agent 协作工作区（server/web 自建镜像，RisingWave 承载未读视图） |
 
 ## 文档入口
 

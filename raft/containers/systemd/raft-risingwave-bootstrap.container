@@ -1,0 +1,51 @@
+[Unit]
+Description=Apply RisingWave bootstrap (CDC source + inbox views)
+PartOf=raft.target
+# 必须晚于迁移：CDC 源读的表得先在 PG 里存在
+Requires=raft-risingwave.service raft-migrator.service raft-prepare.service
+After=raft-risingwave.service raft-migrator.service raft-prepare.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10s
+# exit 3 = source 已存在但缺 relation（半套状态）；重试不会自愈，需人工重建（docs/raft.md）
+RestartPreventExitStatus=3
+# 视图首建要从全量 message 表回填
+TimeoutStartSec=60min
+
+[Container]
+# 自建镜像：postgres:17-alpine + 构建期生成的 SQL + risingwave-bootstrap.sh（ENTRYPOINT）。
+# 逻辑放在脚本里而不是内联 Exec=-c：secret 插值会同时穿过 Quadlet 与 systemd 两层引号
+# （见 docs/quadlet.md）。
+Image=localhost/raft-rw-bootstrap:latest
+Pull=never
+Network=raft.network
+
+Environment=RW_HOST=raft-risingwave
+Environment=RW_PORT=4566
+Environment=RW_USER=root
+Environment=RW_DB=dev
+Environment=RW_SOURCE_NAME=raft_pg_cdc
+
+Environment=CDC_PG_HOST=postgres
+Environment=CDC_PG_PORT=5432
+Environment=CDC_PG_USER=postgres
+Environment=CDC_PG_DATABASE=raft
+Environment=CDC_PG_SSL_MODE=disable
+Environment=CDC_SLOT_NAME=raft_pg_cdc_slot
+Environment=CDC_PUBLICATION_NAME=raft_pg_cdc_pub
+# 密码经 Secret=env 传入，由脚本用 psql \getenv 读取，不进 argv
+Secret=postgres-password,type=env,target=CDC_PG_PASSWORD
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+[Install]
+WantedBy=raft.target

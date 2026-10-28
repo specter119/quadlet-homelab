@@ -1,0 +1,43 @@
+[Unit]
+Description=RisingWave (Raft inbox materialized views)
+PartOf=raft.target
+# CDC 读的是共享 postgres：PG 必须先可服务（其 .container 已 Notify=healthy）
+After=postgres.service
+Requires=postgres.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+# 冷启动要拉 ~2.9GB 镜像并初始化内嵌 meta(SQLite)+state(LocalFs)
+TimeoutStartSec=5min
+
+[Container]
+# digest 必须是 manifest list（多架构）而不是某一架构的 image digest：v3.0.3 的
+# arm64 digest 是 ac5dee9f…，在 x86_64 上运行会 Exec format error。
+Image=docker.io/risingwavelabs/risingwave@sha256:4697d18f2fb5626f1607dfe6db099bd00643dcd734ea68e82d9fb2f6ad620ccf
+# 上游 docker run 示例不带 volume，standalone 默认把 Metadata + State Data 写在
+# ~/.risingwave（容器内 root 的 HOME）；不挂就等于重启即空。
+Network=raft.network
+NetworkAlias=raft-risingwave
+Volume=raft-risingwave-data.volume:/root/.risingwave
+Exec=single_node
+
+# 探 pgwire：TCP accept 不足以证明可服务，但也不该等视图建好（视图由
+# raft-risingwave-bootstrap 负责，若在此等待会与 bootstrap 互锁）。
+# 镜像（Ubuntu）里没有 psql / pg_isready，但有 python3：发 SSLRequest，pgwire 服务就绪时
+# 回一个字节 N（不支持 TLS）或 S，比单纯 TCP connect 多验证了协议层。
+HealthCmd=python3 -c "import socket,sys;s=socket.create_connection(('127.0.0.1',4566),3);s.sendall(bytes.fromhex('0000000804d2162f'));sys.exit(0 if s.recv(1) in (b'N',b'S') else 1)" || exit 1
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=60s
+Notify=healthy
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# No [Install] - 由 raft-server / raft-risingwave-bootstrap 的 Requires= 拉起

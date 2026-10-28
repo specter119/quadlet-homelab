@@ -1,0 +1,30 @@
+[Unit]
+Description=Initialize Raft database in shared PostgreSQL
+PartOf=raft.target
+After=postgres.service
+Requires=postgres.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2s
+
+[Container]
+Image=docker.io/library/postgres:17-alpine
+Network=raft.network
+
+Secret=postgres-password,type=env,target=PGPASSWORD
+
+Exec=sh -c "psql -h postgres -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname='raft'\" | grep -q 1 || psql -h postgres -U postgres -c \"CREATE DATABASE raft\""
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+[Install]
+WantedBy=raft.target

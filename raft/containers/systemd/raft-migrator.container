@@ -1,0 +1,37 @@
+[Unit]
+Description=Raft database migration
+PartOf=raft.target
+Requires=postgres.service raft-initdb.service raft-prepare.service
+After=postgres.service raft-initdb.service raft-prepare.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=5s
+# 375 个 drizzle 迁移，冷启动要逐个建表建索引
+TimeoutStartSec=30min
+
+[Container]
+Image=localhost/raft-server:latest
+Pull=never
+Network=raft.network
+WorkingDir=/app
+
+# 迁移预检是「读回校验」语义：这里只是期望值，真正的 statement_timeout 由
+# raft-migration-database-url 的 options=-c 交付，两者必须相等，否则预检 exit 2。
+Secret=raft-migration-database-url,type=env,target=DATABASE_URL
+Environment=SERVER_MIGRATION_EXPECTED_STATEMENT_TIMEOUT_MS=600000
+
+Exec=pnpm --filter @botiverse/raft-server run db:migrate:deploy
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+[Install]
+WantedBy=raft.target

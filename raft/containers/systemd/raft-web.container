@@ -1,0 +1,51 @@
+[Unit]
+Description=Raft Web (static SPA)
+PartOf=raft.target
+After=traefik.service raft-prepare.service
+Wants=traefik.service
+Requires=raft-prepare.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=localhost/raft-web:latest
+Pull=never
+# 只进 traefik.network：web 不需要访问栈内任何东西（API 地址在构建期已烤入镜像）
+Network=traefik.network
+
+# 探静态首页（nginx:alpine 自带 busybox wget）
+HealthCmd=wget -q -O /dev/null http://127.0.0.1/
+HealthInterval=15s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=10s
+Notify=healthy
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.raft-http.entrypoints=http
+Label=traefik.http.routers.raft-http.middlewares=redir-https@file
+Label=traefik.http.routers.raft-http.rule=Host(`raft.{{domain}}`)
+Label=traefik.http.routers.raft-http.service=noop@internal
+
+# HTTPS
+Label=traefik.http.routers.raft-https.entrypoints=https
+Label=traefik.http.routers.raft-https.tls=true
+Label=traefik.http.routers.raft-https.middlewares=homelab-internal@file,gzip@file
+Label=traefik.http.routers.raft-https.rule=Host(`raft.{{domain}}`)
+Label=traefik.http.services.raft.loadbalancer.server.port=80
+
+[Install]
+WantedBy=raft.target

@@ -121,3 +121,18 @@ depends = ["postgres"]
 
 [superset.files]
 superset = '~/.config'
+
+[raft]
+depends = ["traefik", "postgres", "silo"]
+
+[raft.files]
+# 这里是 Raft **server** 栈；Raft Computer（client，dotfiles 仓库的 raft package）
+# 占用 ~/.local/share/raft（SLOCK_HOME）与 raft-computer.service。server 不使用任何
+# share/ 目录：脚本放 ~/.local/lib/raft（仅构建入口），可再生产物放 ~/.cache/raft。
+raft = '~/.config'
+'raft/runtime' = '~/.local/lib/raft'
+
+[raft.variables.raft]
+# 上游 release mirror 的 tag（每个版本一个 commit）。镜像（含 bootstrap SQL）都由它决定，
+# 改动后需重跑 raft-prepare.service。
+raft_source_tag = "v1.21.23-source.1"

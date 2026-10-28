@@ -1,0 +1,30 @@
+[Unit]
+Description=Raft Redis (replica coordination)
+PartOf=raft.target
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+
+[Container]
+Image=docker.io/valkey/valkey:7.2.11-alpine
+Network=raft.network
+NetworkAlias=raft-redis
+Volume=raft-redis-data.volume:/data
+
+# 刻意不加 Notify=healthy：Redis 对 Raft 是**软依赖**（单副本下所有调用点都有
+# isRedisAvailable() 回退），门禁会把软依赖变成致命的启动阻塞。与 langfuse-redis
+# 的既有做法一致：只留 HealthCmd 供诊断，不参与依赖就绪门禁。
+HealthCmd=redis-cli ping
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# No [Install] - 由 raft-server 的 Requires= 拉起

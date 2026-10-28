@@ -1,0 +1,89 @@
+[Unit]
+Description=Raft Server (API + realtime)
+PartOf=raft.target
+After=traefik.service
+Wants=traefik.service
+# 消费数据库的 unit 自己声明 postgres.service，不依赖 initdb 的传递依赖
+# （见 docs/quadlet.md「基础服务依赖」）。
+Requires=postgres.service raft-prepare.service raft-initdb.service raft-migrator.service raft-redis.service raft-risingwave.service raft-risingwave-bootstrap.service raft-s3-init.service silo.service
+After=postgres.service raft-prepare.service raft-initdb.service raft-migrator.service raft-redis.service raft-risingwave.service raft-risingwave-bootstrap.service raft-s3-init.service silo.service
+
+{{#if (command_success "uname -r | grep -qi wsl")}}
+[Quadlet]
+DefaultDependencies=false
+
+{{/if}}
+[Service]
+Restart=always
+# 启动要跑 warmContractSchemas + 连 PG/RW，冷启动明显慢于默认 90s 门禁
+TimeoutStartSec=5min
+
+[Container]
+Image=localhost/raft-server:latest
+Pull=never
+Network=raft.network
+Network=traefik.network
+
+Environment=NODE_ENV=production
+Environment=PORT=3001
+# 三处 URL 必须一致：SERVER_URL 给 daemon 回连、APP_URL 给邮件/登录跳转与
+# 服务端 permalink 解析、CORS_ORIGIN 给浏览器跨域（web 与 api 是两个域名）
+Environment=SERVER_URL=https://raft-api.{{domain}}
+Environment=APP_URL=https://raft.{{domain}}
+Environment=CORS_ORIGIN=https://raft.{{domain}}
+
+Secret=raft-database-url,type=env,target=DATABASE_URL
+Secret=raft-jwt-secret,type=env,target=JWT_SECRET
+Environment=REDIS_URL=redis://raft-redis:6379
+Environment=RISINGWAVE_DATABASE_URL=postgresql://root@raft-risingwave:4566/dev
+Environment=RISINGWAVE_POOL_MAX=10
+
+# 附件存储走共享 silo。S3_FORCE_PATH_STYLE 必须为 true：预签名 URL 的 Host 与签名
+# 绑定，path-style 才能让浏览器直接命中 silo.{{domain}} 而不用通配 DNS/证书。
+# 不配 S3_CDN_BUCKET / CDN_BASE_URL：storageService 会回落到主桶 + 服务端路由
+# （见 docs/raft.md「附件存储」）。
+Environment=S3_ENDPOINT=https://silo.{{domain}}
+Environment=S3_REGION=us-east-1
+Environment=S3_FORCE_PATH_STYLE=true
+Environment=S3_ATTACHMENTS_BUCKET=raft
+Secret=raft-s3-access-key,type=env,target=S3_ACCESS_KEY_ID
+Secret=raft-s3-secret-key,type=env,target=S3_SECRET_ACCESS_KEY
+# S3 已配置，所以本地落盘必须显式关掉：漏配时应该失败，而不是把附件写进容器层
+Environment=UPLOADS_LOCAL=false
+
+# 企业 MITM 代理：容器自带的信任库没有公司根 CA，而 Node 默认用自带 Mozilla 库、
+# 不读系统库。与 magpie.container 同一套做法，额外用 NODE_EXTRA_CA_CERTS 指过去，
+# 否则所有出站 HTTPS（LLM provider 等）都会 TLS 校验失败。
+Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro,Z
+Environment=NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# 就绪门禁：探 /health（镜像内没有 curl，用 node 自带的 fetch）
+HealthCmd=node -e "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" || exit 1
+HealthInterval=15s
+HealthTimeout=10s
+HealthRetries=5
+HealthStartPeriod=60s
+Notify=healthy
+
+# Dozzle group
+Label=dev.dozzle.group=quadlet
+
+# Traefik labels
+Label=traefik.enable=true
+Label=traefik.docker.network=systemd-traefik
+
+# HTTP -> HTTPS redirect
+Label=traefik.http.routers.raft-api-http.entrypoints=http
+Label=traefik.http.routers.raft-api-http.middlewares=redir-https@file
+Label=traefik.http.routers.raft-api-http.rule=Host(`raft-api.{{domain}}`)
+Label=traefik.http.routers.raft-api-http.service=noop@internal
+
+# HTTPS（Socket.IO 走同一端口，Traefik 原生支持 WS 升级）
+Label=traefik.http.routers.raft-api-https.entrypoints=https
+Label=traefik.http.routers.raft-api-https.tls=true
+Label=traefik.http.routers.raft-api-https.middlewares=homelab-internal@file,gzip@file
+Label=traefik.http.routers.raft-api-https.rule=Host(`raft-api.{{domain}}`)
+Label=traefik.http.services.raft-api.loadbalancer.server.port=3001
+
+[Install]
+WantedBy=raft.target
