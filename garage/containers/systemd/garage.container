@@ -9,7 +9,7 @@ ExecStartPre=/bin/sh -c 'if [ ! -s %h/.local/share/containers/storage/volumes/sy
 Restart=always
 [Container]
 Image=docker.io/dxflrs/garage:v2.1.0
-{{command_output "bash -lc './.dotter/render_networks.sh garage 2> >(tee -a ~/.cache/dotter-render.log >&2) || true'"}}
+{{command_output "bash -lc './.dotter/render_networks.sh garage || true'"}}
 NetworkAlias=garage
 Volume=garage-meta.volume:/var/lib/garage/meta
 Volume=garage-data.volume:/var/lib/garage/data

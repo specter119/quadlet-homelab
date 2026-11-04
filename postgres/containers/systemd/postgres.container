@@ -15,7 +15,7 @@ Image=docker.io/pgvector/pgvector:pg17
 # 设计与重建流程见 docs/raft.md。max_replication_slots / max_wal_senders 用 PG 默认
 # 的 10，无需显式设置。改这两个参数都需要重启本容器。
 Exec=postgres -c wal_level=logical -c max_slot_wal_keep_size=256MB
-{{command_output "bash -lc './.dotter/render_networks.sh postgres 2> >(tee -a ~/.cache/dotter-render.log >&2) || true'"}}
+{{command_output "bash -lc './.dotter/render_networks.sh postgres || true'"}}
 NetworkAlias=postgres
 Volume=postgres-data.volume:/var/lib/postgresql/data
 Environment=POSTGRES_USER=postgres

@@ -45,7 +45,8 @@ needs_dep_conf() {
     silo) re='-s3-|s3-|silo|minio' ;;
   esac
   [[ -n "$re" ]] || return 1
-  grep -Eq "$re" "$conf"
+  # `--` 不可省：silo 的模式以 '-' 开头，否则会被 grep 当成选项而永远不匹配。
+  grep -Eq -- "$re" "$conf"
 }
 
 if [[ -f "$LOCAL_TOML" ]]; then

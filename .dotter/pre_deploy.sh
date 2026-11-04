@@ -95,8 +95,6 @@ PY
 }
 
 echo "[pre-deploy] Checking secrets..."
-mkdir -p "$HOME/.cache/dotter"
-: >"$HOME/.cache/dotter/render.log"
 
 echo "[pre-deploy] Checking shared trusted network policy..."
 check_trusted_source_ranges || warn "trusted network policy check failed; continuing deployment"
