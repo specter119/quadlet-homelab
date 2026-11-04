@@ -26,6 +26,9 @@ Volume=%E/magpie:/config/magpie:Z
 # Reuse the host's updated CA bundle for the files SSL_CERT_FILE points at.
 Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro,Z
 Environment=MAGPIE_ADDR=0.0.0.0:3425
+# Only changes the addresses the UI shows and copies (plugin MCP URLs etc.);
+# the gateway still binds and registers plugins on MAGPIE_ADDR.
+Environment=MAGPIE_PUBLIC_URL=https://magpie.{{domain}}
 # magpie's own (Go) npm-metadata fetches: npmjs is blocked, so they are
 # mirrored through Traefik's internal npm-mirror rewriter (:8081, addPrefix +
 # %2F decode + Bearer) to company Artifactory. Plugin installs need none of

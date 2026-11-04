@@ -30,6 +30,15 @@ Volume=%h/.config/co.nowledge.mem.desktop:/etc/nowledge-mem/co.nowledge.mem.desk
 Volume=%h/.local/share/NowledgeGraph:/var/lib/nowledge-mem/NowledgeGraph:Z
 Volume=%h/.cache/nowledge-graph:/var/cache/nowledge-mem:Z
 Volume=%h/.cache/huggingface:/var/cache/nowledge-mem/huggingface:Z
+# Local embedding GGUF lands in /var/lib/nowledge-mem/.cache/nmem-rs/models, which
+# is otherwise an anonymous image volume discarded on every restart. Named volume,
+# not a host path: it is a re-downloadable cache.
+Volume=nowledge-mem-models.volume:/var/lib/nowledge-mem/.cache
+# Corporate MITM proxy: the image has no company roots, so model downloads
+# (ModelScope / Hugging Face) fail TLS verify. See docs/quadlet.md.
+Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+# Kuzu needs time to checkpoint on shutdown; the 10s default ends in SIGKILL.
+StopTimeout=60
 
 # Dozzle group
 Label=dev.dozzle.group=quadlet
