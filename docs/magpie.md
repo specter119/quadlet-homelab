@@ -17,7 +17,21 @@
 > [!WARNING]
 > 上游会把含登录 key 的链接打印到容器标准输出；Dozzle 可以查看该日志。因此能访问 Dozzle 日志的用户也能取得 Magpie Web UI key。只向可信管理员开放 Dozzle。
 
-- 模型网关监听容器端口 `3425`，只发布到宿主机回环地址 `127.0.0.1:3425`，不经 Traefik 对外路由；宿主机上的 agent 可使用 `http://127.0.0.1:3425/v1`。同在 `traefik.network` 的容器仍可直接访问 Magpie 容器端口。若需从其他设备调用网关，先按上游的 LAN sharing 说明启用带 key 的访问，再单独配置并验证网关路由。
+- 模型网关与插件 MCP 监听容器端口 `3425`，宿主机只发布到回环地址 `127.0.0.1:3425`；Traefik 只代理 web 端口 `3430`。Base URL：宿主机 `http://127.0.0.1:3425`，同在 `traefik.network` 的容器 `http://systemd-magpie:3425`，其他设备 `https://magpie.<domain>`。API 追加 `/v1`，插件 MCP 追加 `/mcp/magpie/tools/<plugin>`，都使用网关 Bearer key；HTTPS 复用现有 Web 入口，不需要额外的 Traefik 路由。
+
+- `MAGPIE_PUBLIC_URL=https://magpie.<domain>` 只改变 UI 展示和复制出来的地址，不覆盖 Library 自动登记的 MCP 地址（由 `MAGPIE_ADDR` 推导，每次插件加载都会重写）；外部应用直接填上面那行里的 HTTPS MCP 地址和 Bearer key。
+
+## 记忆插件（Nowledge Mem）
+
+可选：用 `@magpie-community/gateway-nowledge-mem` 对接 [Nowledge Mem](nowledge-mem.md)（召回 + 采集）。以下仅针对模型请求，`/mcp` 不经过这些钩子。
+
+- `serverUrl=http://systemd-nowledge-mem:14242`：容器内的回环指向自己，跨容器只能走明文，所以插件要开 `allowInsecureHttp=true`，且仅限可信容器网络。
+- 带命名 key 的调用方都按 `gateway-key` 处理：当前 rootless 端口转发下，宿主回环的 `curl 127.0.0.1:3425` 也算这一类。需要召回/采集时分别开启 `recallRemote` / `captureRemote`；只采集用户消息时设 `captureFilter="human"`。
+- 插件页的 Test 按钮在 `magpie web` 模式下不可用，用真实模型请求验证；`apiKey` 只在插件页填，别走 CLI 参数（会留在 shell history）。
+- Mem 的蒸馏 LLM 若指向 Magpie（`http://systemd-magpie:3425/v1`），它自己的请求也会被召回、采集，形成回环。把 Mem 的 agent 名加入 `skipAgents`；agent 名取自 `usage.jsonl`，设置前先确认它非空且不与真实客户端重名。已形成回环时先停用插件：`magpie plugin off @magpie-community/gateway-nowledge-mem`。
+
+> [!WARNING]
+> 开启远程召回/采集后，获准经过该插件的 caller key 就获得了相应的 Mem 访问能力，包括以后新建的 key；不要把 caller key 当作记忆隔离边界。
 
 ## 公司网络下的 npm 全链路（插件安装 + 元数据）
 

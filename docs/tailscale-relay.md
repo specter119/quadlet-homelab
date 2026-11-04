@@ -94,7 +94,7 @@ Peer Relay（Tailscale ≥ 1.86）允许将任意 Tailnet 节点升级为原生 
 
 两台都用 `--accept-dns=false`，各自系统 DNS 独立：
 
-- **m600**：dnsmasq 处理 `*.homelab.com`，systemd-resolved 处理其他域名（见 [traefik.md](traefik.md#linux-networkmanager--systemd-resolved--dnsmasq)）
+- **m600**：dnsmasq 处理 `*.homelab.com`，systemd-resolved 处理其他域名（见 [traefik.md](traefik.md#linuxnetworkmanager--systemd-resolved--dnsmasq)）
 - **VPS**：保持系统默认 DNS（如阿里云的 `100.100.2.136` 或手动设置的 `223.5.5.5`），不装 dnsmasq
 - **Admin Console Split DNS**（`*.homelab.com → m600 TS_IP`）只对开启 `accept-dns` 的客户端生效，两台服务器均不受影响
 

@@ -10,6 +10,10 @@ Base docs: [`docs/quadlet.md`](quadlet.md)
 - 服务直接运行官方镜像 `docker.io/nowledgelabs/mem`（`Pull=newer`），镜像入口即 `nmem-server`，默认监听 `0.0.0.0:14242`，无需 `Exec=` 覆盖
 - `UserNS=keep-id:uid=10001,gid=10001`：官方镜像以 `nowledge`（uid 10001）运行。裸 `keep-id` 只映射宿主 uid 1000，容器内进程 uid 10001 落入映射外，写挂载卷会报 `Permission denied (os error 13)` / `Storage ownership admission refused`，必须显式指定
 - Traefik 暴露入口为 `https://nowledge-mem.<domain>/app`，根路径会被重写到 `/app`
+- 模型下载挂载[宿主 CA bundle](quadlet.md#%E4%BC%81%E4%B8%9A-mitm-%E4%BB%A3%E7%90%86%E5%A4%8D%E7%94%A8%E5%AE%BF%E4%B8%BB-ca-bundle)（`:ro`）：公司 MITM 代理下镜像没有公司根证书，下载会失败；可用源以 `GET /models/mirrors` 的实际探测为准，默认不设 `HF_ENDPOINT` 或 `NMEM_MODEL_BASE_URL`
+- `StopTimeout=60`：默认 10 秒后 SIGKILL，Kuzu 来不及落盘
+- 本地 embedding 模型缺失时 `nmem status` 会显示 `degraded (local-hash-fallback)`：先 `nmem models download`（进度看 `GET /models/status` 的 `download_progress`），下载后重启服务；日志提示 `search index needs a semantic rebuild` 时执行 `nmem models reindex`，最后用 `nmem status` 确认已退出 fallback
+- 蒸馏用的 LLM 可选指向 Magpie 网关（`http://systemd-magpie:3425/v1`，同网络容器直连，不走 Traefik），provider 与 key 在 Mem 设置里填；若同时启用了 Magpie 的记忆插件，按[回环隔离规则](magpie.md#%E8%AE%B0%E5%BF%86%E6%8F%92%E4%BB%B6nowledge-mem)处理 `skipAgents`
 
 ## 持久化目录
 
@@ -19,8 +23,7 @@ Base docs: [`docs/quadlet.md`](quadlet.md)
 - `~/.local/share/NowledgeGraph` → `/var/lib/nowledge-mem/NowledgeGraph`
 - `~/.cache/nowledge-graph` → `/var/cache/nowledge-mem`
 - `~/.cache/huggingface` → `/var/cache/nowledge-mem/huggingface`（子挂载覆盖）
-
-`ExecStartPre=/usr/bin/mkdir -p ...` 会在启动前创建上述四个宿主目录：bind 源不存在时 podman 以 125 退出（`statfs ...: no such file or directory`），Quadlet 的 `Volume=` 不会自动创建宿主目录。
+- `nowledge-mem-models.volume`（Podman 卷 `systemd-nowledge-mem-models`，未设 `VolumeName=`）→ `/var/lib/nowledge-mem/.cache`：本地 embedding GGUF 实际落在 `.cache/nmem-rs/models`，可重新下载，所以用命名卷而不是宿主路径；不可依赖镜像的 `/var/lib/nowledge-mem` 匿名卷（见[匿名卷持久化规则](quadlet.md#%E9%95%9C%E5%83%8F%E5%8C%BF%E5%90%8D%E5%8D%B7%E7%9A%84%E6%8C%81%E4%B9%85%E5%8C%96)），否则每次重启都会丢模型并退回 hash fallback
 
 > [!WARNING]
 > 不要只保留配置目录。记忆数据库、索引和模型缓存都在上述目录里，删错会导致重新下载模型或丢失数据。

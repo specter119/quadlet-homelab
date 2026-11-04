@@ -226,7 +226,7 @@ After=postgres.service
 > `Notify=healthy` 依赖 `HealthCmd=`，且健康检查必须探测容器真正对外服务的通道。`pg_isready` 不带 `-h` 时走 Unix socket，会在 docker-library/postgres 首次初始化的“仅 socket 临时服务”阶段误报健康（TCP 还没监听），依赖方照样 `connection refused`；因此这里显式用 `-h 127.0.0.1`。
 
 > [!WARNING]
-> `HealthCmd=` 的值如果**以双引号结尾**（如 `node -e "..."`、`python3 -c "..."`），Quadlet（podman 5.4）生成 `--health-cmd` 时会丢掉最后那个 `"`，容器内报 `Syntax error: Unterminated quoted string`，健康检查永远失败，`Notify=healthy` 的单元因此卡在 activating。在引号后追加 ` || exit 1` 让值不以引号结尾即可规避（语义不变）。需要内联脚本时优先用这种写法，而不是改成单引号包整体。
+> `HealthCmd=` 的值如果**以双引号结尾**（如 `node -e "..."`、`python3 -c "..."`），Quadlet（podman 5.4）生成 `--health-cmd` 时会丢掉最后那个 `"`，容器内报 `Syntax error: Unterminated quoted string`，健康检查永远失败，`Notify=healthy` 的单元因此卡在 activating。在该值结尾的引号后追加 `|| exit 1`（与引号之间用空格分隔），让值不以引号结尾即可规避（语义不变）。需要内联脚本时优先用这种写法，而不是改成单引号包整体。
 >
 > 另外，健康检查只能用**容器镜像里已有的**工具：例如 `risingwavelabs/risingwave` 没有 `psql` / `pg_isready`，但有 `python3`。
 
@@ -307,6 +307,25 @@ specifier：`%E` = `~/.config`，`%D` = `~/.local/share`，`%C` = `~/.cache`，`
 
 > [!NOTE]
 > 只对由容器写入的数据目录这样做。由 dotter 部署的配置文件/目录（如 `%E/garage/garage.toml`）和用户自行提供的文件（如 `%h/.netrc`、Traefik 证书目录）不要 `mkdir`，缺失应当直接失败。
+
+### 镜像匿名卷的持久化
+
+镜像声明但未被显式挂载覆盖的 `VOLUME` 默认生成匿名卷；Quadlet 服务重启重建容器时，旧匿名卷随 `--rm` 删除。
+
+- 判断：先用 `podman inspect <容器> --format '{{json .Mounts}}'` 找到挂到目标路径的卷，再运行 `podman volume inspect <卷名> --format '{{.Anonymous}}'`；不要用重启验证，重启会先把旧卷删掉。
+- 修复：为应用实际写入的子目录显式配 `Volume=`（bind 或命名卷）；只有 bind 的宿主数据目录需按[上一节](#%E5%AE%BF%E4%B8%BB-bind-%E6%BA%90%E7%9B%AE%E5%BD%95%E5%BF%85%E9%A1%BB%E9%A2%84%E5%85%88%E5%88%9B%E5%BB%BA)用 `ExecStartPre` 预建，把旧匿名卷里的数据搬过去再重启服务。
+
+### 企业 MITM 代理：复用宿主 CA bundle
+
+容器不信任公司代理重签用的根证书时会拒绝 HTTPS（精简镜像典型报 `self-signed certificate in certificate chain`）。可挂载宿主已更新的 CA bundle，前提是两端路径存在、且应用读取该信任库：
+
+```ini
+Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+```
+
+- 例子里的 `:ro` 只能防写，不决定 SELinux 读取权限；宿主启用 SELinux 时需另行确认容器能读到该文件（本仓库 `magpie`、`raft-server` 用 `:ro,Z`，`nowledge-mem` 只用 `:ro`）。重标记系统证书这类宿主文件有代价，只在确实需要时加。
+- 单文件 bind 会固定在 inode 上；`update-ca-certificates` 替换文件后，运行中的容器仍看到旧内容，需要重启容器。
+- 不要为此改宿主全局环境（会污染其他 CLI）。路径覆盖只对目标容器设置，且要用该运行时认可的变量：`SSL_CERT_FILE`、Node 的 `NODE_EXTRA_CA_CERTS` 等；运行时本来就读默认路径时不需要设。
 
 ## Label 规范
 
