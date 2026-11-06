@@ -33,64 +33,40 @@
 > [!WARNING]
 > 开启远程召回/采集后，获准经过该插件的 caller key 就获得了相应的 Mem 访问能力，包括以后新建的 key；不要把 caller key 当作记忆隔离边界。
 
-## 公司网络下的 npm 全链路（插件安装 + 元数据）
+## 公司网络下的 npm 源
 
-公司封闭网络禁了 `registry.npmjs.org` 与国内镜像，且出站 HTTPS 走 MITM 代理（自定义 CA）。Magpie 有两条独立的 npm 消费链，都需要显式配置才能真正工作：
+公司封闭网络禁了 `registry.npmjs.org` 与国内镜像，只能访问需要 token 的 Artifactory npm 仓库。Magpie 有两条 npm 消费链，都读同一个文件 `/config/magpie/plugins/.npmrc`（宿主 `~/.config/magpie/plugins/.npmrc`）：
 
-### 链路一：bun 安装插件 → 项目级 `bunfig.toml`
+- **bun 安装插件**：bun 以 `plugins/` 为工作目录，读取 `package.json` 旁边的 `.npmrc`。
+- **Magpie 自身（Go）的 npm 元数据**：Discover 的版本号、更新检查、README 与搜索。自 v0.1.2274 起它们请求「当前 npm 源」，不再硬编码 `registry.npmjs.org`。
 
-`magpie plugin add` / Web UI 安装最终都通过 bun 落包，bun 的 registry 优先级是：**env (`NPM_CONFIG_REGISTRY`/`BUN_CONFIG_REGISTRY`) > 项目级 `bunfig.toml` > 全局 `~/.bunfig.toml`**。本服务采用**项目级 bunfig**（不设任何 npm env），落在宿主 `~/.config/magpie/plugins/`：
-
-```toml
-# /config/magpie/plugins/bunfig.toml（宿主 ~/.config/magpie/plugins/）
-# url 以 .dotter/local.toml 的 artifactory_url_base / artifactory_registry_path 为准
-[install.registry]
-url = "{{artifactory_url_base}}{{artifactory_registry_path}}/"
-token = "<artifactory_token>"
-```
+该文件由 dotfiles 仓库的 `magpie` package 渲染，需要 `registry=` 与 `//<host>/<path>/:_authToken=` 两行，本仓库不管理它。
 
 > [!IMPORTANT]
-> 项目级 bunfig.toml **固定放在 `/config/magpie/plugins/`**（bun 以 `settings.Dir()/plugins` 为工作目录，只有这里的 bunfig 会被读到）。放 `$HOME/.bunfig.toml` 不生效——容器 passwd 的 home 是 `/home/nonroot` 而 `HOME` 变量指向 `/config/home`，两者不一致且容器重启即丢。
+> Go 侧只从 `.npmrc` 的 `_authToken` 读 token（`plugins/.npmrc` 与 `$HOME/.npmrc`，`$HOME` 在容器内是 `/config/home`），**不读** bunfig 的 `token`，也不支持 `_auth`。token 只放在 bunfig 里时 bun 安装正常，但 Go 侧匿名请求会得到 401，Discover 版本号显示为空。`${VAR}` 展开只认这一种写法，`${VAR?}` 不被识别。
+
+选择顺序（先命中先用）：界面/`magpie plugin registry` 设置（`settings.json` 的 `npmRegistry`）> 进程环境 `BUN_CONFIG_REGISTRY`/`NPM_CONFIG_REGISTRY` > 登录 shell 同名变量 > `plugins/bunfig.toml` > `plugins/.npmrc` > `$XDG_CONFIG_HOME/.bunfig.toml` > `~/.bunfig.toml` > `~/.npmrc` > 国内镜像开关 > npm 官方源。
 
 > [!WARNING]
-> 前端 **切勿打开「国内镜像」（chinaMirror）开关**：magpie 的 `registryEnv()` 只在 chinaMirror 开启且 env 无 registry 时强制注入 `BUN_CONFIG_REGISTRY=https://registry.npmmirror.com/`，会覆盖项目级 bunfig，导致安装全部 503。
+> 不要点界面「npm 源」一行的「修改」。它只存 URL、不能填 token，写入的 `settings.json` 又由 dotfiles 渲染；设置后 Magpie 还会向 bun 注入 `BUN_CONFIG_REGISTRY`，覆盖 `.npmrc` 里的配置。这一行只用来确认当前来源，应显示 `来自 /config/magpie/plugins/.npmrc`。
 
-### 链路二：Magpie 自身（Go）读取 npm 元数据 → Traefik npm-mirror 改写
-
-Web 插件列表的版本号/搜索/更新检查由 Magpie **进程内 Go 代码**请求 `registry.npmjs.org/@magpie-community%2F…/latest`（scope 以 `%2F` 编码，`npmPath` 硬编码）。该写法 npm 官方接受，但 Artifactory 只认未编码 `@scope/name/latest`。因此通过 Traefik 加一个内部改写入口：
-
-> [!IMPORTANT]
-> 下面整条链路（Traefik 的 Secret / entryPoint / router，以及 magpie 的 `MAGPIE_*` 环境变量）只在 `dotter deploy` 时 Podman Secret `artifactory_token` 已存在才会渲染（条件 `podman secret exists artifactory_token`）。没有该 secret 的机器（非公司网络）不会生成这些内容，Traefik 也不会因缺少 secret 而启动失败。
-
-- `magpie.container` 设 `MAGPIE_MIRRORS=on` + `MAGPIE_NPM_REGISTRY=http://systemd-traefik:8081`，让 Go 的 npm 元数据请求 fallback 到 Traefik 内部入口。
-- `traefik.container`：`Secret=artifactory_token,type=env,target=ARTIFACTORY_NPM_TOKEN`（转发到 Artifactory 时注入 Bearer；Artifactory 走公网 DigiCert 证书，Traefik 镜像自备 CA 即可，无需额外 CA mount）
-- `traefik.toml` 增加内部 entryPoint：`[entryPoints.npm-mirror] address = ":8081"`——同一条 rewriter 服务两个入口：容器内 `http://systemd-traefik:8081`，宿主机用对外域名 `https://npm-mirror.<domain>`（443）。
-- 独立文件 `traefik/traefik/middlewares-artifactory-npm.toml`（file provider 目录模式会加载目录下所有 `.toml`，文件名随意）里的 `npm-mirror-internal` router。该文件在 `.dotter/global.toml` 的 `[traefik.files]` 条目上用 `if = '(command_success "podman secret exists artifactory_token")'` 控制部署：secret 不存在时文件不会出现在 `~/.config/traefik/`，已部署的旧文件会在下次 `dotter deploy` 时被移除（entryPoint `npm-mirror`）依次套三个中间件：
-  1. `npm-mirror-prefix.addPrefix`：补 Artifactory 仓库前缀 `/artifactory/api/npm/npm-repository-virtual-external`
-  1. `npm-mirror-decode.replacePathRegex`：`%2F` → `/`（该中间件作用于 RawPath，正是保留编码的那层）
-  1. `npm-mirror-auth.headers.customRequestHeaders`：`Authorization = "Bearer \{{ env "ARTIFACTORY_NPM_TOKEN" }}"`
+> [!WARNING]
+> **切勿打开「国内镜像」（chinaMirror）开关**：它会先请求返回 503 的 npmmirror 和被封的 jsDelivr 再回退。
 
 > [!NOTE]
-> token 头用 Traefik file provider 的 Go template（`{{ env … }}`）从容器 env 读取，而非直接写死；因为是 TOML 先过 dotter handlebars 再给 Traefik 渲染，模板里的 `{{` 必须用 `\{{` 转义。
+> 旧版本需要 Traefik 内部入口把 `@scope%2Fname` 改写成未编码路径并注入 Bearer。现在不再需要：Artifactory 已接受 `%2F`，前缀由 registry URL 自带，认证由 `.npmrc` 提供。若换了不接受 `%2F` 的仓库，才需要恢复那层改写。
 
-> [!WARNING]
-> 容器不可通过宿主 443 访问 `npm-mirror.<domain>`：Traefik 的 80/443 是宿主 socket-activation 传入的 FD，容器网络 IP 上没有监听，必 Connection refused。所以 magpie 走的是 Traefik 容器网络内的 `:8081`。**Traefik v3 已移除 `rule = "true"` 语法**，内部入口用 `PathPrefix(\`/\`)\`。
+已知缺口：Agent CLI 的更新检查仍硬编码 `registry.npmjs.org`，没有回退。容器里没有检测到任何 Agent CLI，影响可忽略。Discover 搜索请求 Artifactory 的 `/-/v1/search`，实测约 55 秒，属于仓库侧延迟。
 
-### 两个 Podman Secret
+### Podman Secret
 
-| Secret              | 用途                                             | 初始化位置                                               |
-| ------------------- | ------------------------------------------------ | -------------------------------------------------------- |
-| `magpie-web-key`    | Web UI 登录 key                                  | `.dotter/secrets/magpie.conf`（`hex:32`，dotter 自动建） |
-| `artifactory_token` | Artifactory npm token（bun 安装 + Traefik 注入） | **运行时手动创建**，不进仓库（见下）                     |
-
-```bash
-echo -n "<token>" | podman secret create artifactory_token -
-```
-
-> [!IMPORTANT]
-> `artifactory_token` 由运行时手动创建（值来自贵司 Artifactory npm token），换机重建时必须先重新创建，再运行 `dotter deploy`，并重启 `traefik.service` 与 `magpie.service`；先 deploy 后建 secret 时 npm-mirror 链路不会渲染，需要重新 deploy。该 secret 缺失时 bun 安装会回落 401。复制一份到 `/config/magpie/plugins/bunfig.toml` 的 token 字段是同一份配置的一部分，注意别同步进公开仓库。
+| Secret           | 用途            | 初始化位置                                               |
+| ---------------- | --------------- | -------------------------------------------------------- |
+| `magpie-web-key` | Web UI 登录 key | `.dotter/secrets/magpie.conf`（`hex:32`，dotter 自动建） |
 
 ## 参考
 
 - [Magpie README：Docker、Web UI 与配置文件](https://github.com/yetone/magpie#docker)
-- [Magpie releases](https://github.com/yetone/magpie-releases/releases)
+- [Magpie releases](https://github.com/yetone/magpie-releases/releases)（npm 源设置自 v0.1.2274）
+- [Magpie 插件文档：The npm registry plugins come from](https://github.com/yetone/magpie/blob/main/docs/subsystems/provider-plugins.md)
+- [Bun：.npmrc 支持](https://bun.com/docs/pm/npmrc)
