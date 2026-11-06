@@ -59,10 +59,13 @@ token = "<artifactory_token>"
 
 Web 插件列表的版本号/搜索/更新检查由 Magpie **进程内 Go 代码**请求 `registry.npmjs.org/@magpie-community%2F…/latest`（scope 以 `%2F` 编码，`npmPath` 硬编码）。该写法 npm 官方接受，但 Artifactory 只认未编码 `@scope/name/latest`。因此通过 Traefik 加一个内部改写入口：
 
+> [!IMPORTANT]
+> 下面整条链路（Traefik 的 Secret / entryPoint / router，以及 magpie 的 `MAGPIE_*` 环境变量）只在 `dotter deploy` 时 Podman Secret `artifactory_token` 已存在才会渲染（条件 `podman secret exists artifactory_token`）。没有该 secret 的机器（非公司网络）不会生成这些内容，Traefik 也不会因缺少 secret 而启动失败。
+
 - `magpie.container` 设 `MAGPIE_MIRRORS=on` + `MAGPIE_NPM_REGISTRY=http://systemd-traefik:8081`，让 Go 的 npm 元数据请求 fallback 到 Traefik 内部入口。
 - `traefik.container`：`Secret=artifactory_token,type=env,target=ARTIFACTORY_NPM_TOKEN`（转发到 Artifactory 时注入 Bearer；Artifactory 走公网 DigiCert 证书，Traefik 镜像自备 CA 即可，无需额外 CA mount）
 - `traefik.toml` 增加内部 entryPoint：`[entryPoints.npm-mirror] address = ":8081"`——同一条 rewriter 服务两个入口：容器内 `http://systemd-traefik:8081`，宿主机用对外域名 `https://npm-mirror.<domain>`（443）。
-- `middlewares.toml` 的 `npm-mirror-internal` router（entryPoint `npm-mirror`）依次套三个中间件：
+- 独立文件 `traefik/traefik/middlewares-artifactory-npm.toml`（file provider 目录模式会加载目录下所有 `.toml`，文件名随意）里的 `npm-mirror-internal` router。该文件在 `.dotter/global.toml` 的 `[traefik.files]` 条目上用 `if = '(command_success "podman secret exists artifactory_token")'` 控制部署：secret 不存在时文件不会出现在 `~/.config/traefik/`，已部署的旧文件会在下次 `dotter deploy` 时被移除（entryPoint `npm-mirror`）依次套三个中间件：
   1. `npm-mirror-prefix.addPrefix`：补 Artifactory 仓库前缀 `/artifactory/api/npm/npm-repository-virtual-external`
   1. `npm-mirror-decode.replacePathRegex`：`%2F` → `/`（该中间件作用于 RawPath，正是保留编码的那层）
   1. `npm-mirror-auth.headers.customRequestHeaders`：`Authorization = "Bearer \{{ env "ARTIFACTORY_NPM_TOKEN" }}"`
@@ -78,10 +81,14 @@ Web 插件列表的版本号/搜索/更新检查由 Magpie **进程内 Go 代码
 | Secret              | 用途                                             | 初始化位置                                               |
 | ------------------- | ------------------------------------------------ | -------------------------------------------------------- |
 | `magpie-web-key`    | Web UI 登录 key                                  | `.dotter/secrets/magpie.conf`（`hex:32`，dotter 自动建） |
-| `artifactory_token` | Artifactory npm token（bun 安装 + Traefik 注入） | **运行时手动创建**，不进仓库：\`echo -n "<token>"        |
+| `artifactory_token` | Artifactory npm token（bun 安装 + Traefik 注入） | **运行时手动创建**，不进仓库（见下）                     |
+
+```bash
+echo -n "<token>" | podman secret create artifactory_token -
+```
 
 > [!IMPORTANT]
-> `artifactory_token` 由运行时手动创建（值来自贵司 Artifactory npm token），换机重建时必须先重新创建，否则 bun 安装回落 401、Traefik 注入空头。复制一份到 `/config/magpie/plugins/bunfig.toml` 的 token 字段是同一份配置的一部分，注意别同步进公开仓库。
+> `artifactory_token` 由运行时手动创建（值来自贵司 Artifactory npm token），换机重建时必须先重新创建，再运行 `dotter deploy`，并重启 `traefik.service` 与 `magpie.service`；先 deploy 后建 secret 时 npm-mirror 链路不会渲染，需要重新 deploy。该 secret 缺失时 bun 安装会回落 401。复制一份到 `/config/magpie/plugins/bunfig.toml` 的 token 字段是同一份配置的一部分，注意别同步进公开仓库。
 
 ## 参考
 

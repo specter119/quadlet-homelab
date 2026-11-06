@@ -8,6 +8,11 @@ traefik = '~/.config'
 target = '~/.config/traefik'
 type = 'template'
 
+[traefik.files.'traefik/traefik/middlewares-artifactory-npm.toml']
+target = '~/.config/traefik/middlewares-artifactory-npm.toml'
+type = 'template'
+if = '(command_success "podman secret exists artifactory_token")'
+
 [traefik.variables]
 domain = "homelab.com"
 # Corporate npm mirror backend (real values injected via local.toml, the

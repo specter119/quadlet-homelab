@@ -23,7 +23,7 @@ log-notify = '~/.config'                          # 整包：systemd/ 等子目�
 - 默认写一行 `<package> = '~/.config'`，package 内按 `~/.config` 下的相对路径组织。新增子目录（如 `<service>/log-notify/rules.d/`）不需要改 `global.toml`
 - 只有两种情况才加一行：**目标根目录不同**（`runtime/` 部署到 `~/.local/lib/<package>`），或**部署类型不同**（强制 `type = 'template'`，用于挂进容器的配置目录，如 `traefik/traefik`，以及含模板文件的构建目录，如 `deepseek-harness/runtime`）
 - 更具体的路径覆盖上级规则：Dotter 按路径排序展开 `files`，子路径后展开并覆盖父路径展开出的同一目标
-- 不为单个文件写精确映射；含 `{{` 的文件会自动按模板渲染，不必显式声明 `type = 'template'`
+- 不为单个文件写精确映射；含 `{{` 的文件会自动按模板渲染，不必显式声明 `type = 'template'`。例外：需要按条件部署某个文件时，给它单独写一个条目并加 `if`（可调用 handlebars helper），如 `traefik/traefik/middlewares-artifactory-npm.toml`；条件为假时该文件不会被部署，父目录映射不会把它带回来
 
 ## 覆盖顺序
 

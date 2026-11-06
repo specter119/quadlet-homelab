@@ -25,11 +25,13 @@ trustedIPs = ["127.0.0.1/32", "172.0.0.0/8", "10.0.0.0/8"]
 [entryPoints.https.http3]
 advertisedPort = 443
 
+{{#if (command_success "podman secret exists artifactory_token")}}
 # Internal entrypoint: containers reach Traefik's npm-mirror rewriter here.
 # Host 443 is socket-activated (not bound on the podman network), so in-network
 # services connect to this port instead.
 [entryPoints.npm-mirror]
 address = ":8081"
+{{/if}}
 
 # Disable default traefik entrypoint (API uses file provider router instead)
 [entryPoints.traefik]

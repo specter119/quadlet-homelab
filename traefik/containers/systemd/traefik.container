@@ -24,8 +24,11 @@ Volume=/etc/localtime:/etc/localtime:ro
 Volume=%t/podman/podman.sock:/var/run/docker.sock:ro
 Volume=%E/traefik/:/etc/traefik/:ro
 Volume=%S/traefik/ssl/:/data/ssl/:Z
+{{#if (command_success "podman secret exists artifactory_token")}}
+# Rendered only when the secret exists: podman exits 125 on a missing Secret=.
 # Artifactory npm token, injected as Bearer to npm mirror upstream (env at runtime)
 Secret=artifactory_token,type=env,target=ARTIFACTORY_NPM_TOKEN
+{{/if}}
 Notify=true
 SecurityLabelDisable=true
 

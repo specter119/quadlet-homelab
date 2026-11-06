@@ -29,12 +29,14 @@ Environment=MAGPIE_ADDR=0.0.0.0:3425
 # Only changes the addresses the UI shows and copies (plugin MCP URLs etc.);
 # the gateway still binds and registers plugins on MAGPIE_ADDR.
 Environment=MAGPIE_PUBLIC_URL=https://magpie.{{domain}}
+{{#if (command_success "podman secret exists artifactory_token")}}
 # magpie's own (Go) npm-metadata fetches: npmjs is blocked, so they are
 # mirrored through Traefik's internal npm-mirror rewriter (:8081, addPrefix +
 # %2F decode + Bearer) to company Artifactory. Plugin installs need none of
 # this (they use plugins/bunfig.toml; keep chinaMirror OFF in the UI).
 Environment=MAGPIE_MIRRORS=on
 Environment=MAGPIE_NPM_REGISTRY=http://systemd-traefik:8081
+{{/if}}
 PublishPort=127.0.0.1:3425:3425
 Secret=magpie-web-key,type=env,target=MAGPIE_WEB_KEY
 Exec=web --addr 0.0.0.0:3430 --no-open
