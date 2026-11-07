@@ -1,135 +1,26 @@
-# Tailscale Peer Relay 与 Homelab 共存配置
+# Tailscale Peer Relay（relay-vps）
 
-在已有 [Tailscale Split DNS 远程访问](tailscale.md) 的基础上，通过 Peer Relay 加速国内设备之间的 Tailnet 连接。
+在 [tailscale.md](tailscale.md) 的 tailnet 之上，把国内 VPS 升级为 Peer Relay（Tailscale ≥ 1.86），让两端无法直连的国内设备走原生 WireGuard UDP 中继，替代 DERP 的 HTTPS 路径。
 
-## 架构概述
+relay-vps 只在 L3 转发 UDP，不参与 DNS、HTTPS 路由或任何应用层逻辑：m600 的 dnsmasq、Traefik、systemd-resolved 配置完全不变。
 
-Peer Relay（Tailscale ≥ 1.86）允许将任意 Tailnet 节点升级为原生 WireGuard UDP 中继，替代传统 DERP 的 HTTPS+WebSocket 路径。在国内 VPS 上启用后，国内设备间的 RTT 可从 ~160ms 降至 ~30ms。
+## 前置条件
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Remote Device (手机/笔记本)                                 │
-│  └── Tailscale Client                                       │
-│      ├── Split DNS: *.homelab.com → 100.x.x.x (m600)        │
-│      └── WireGuard tunnel via Peer Relay (UDP)               │
-└──────────┬──────────────────────────────────┬───────────────┘
-           │                                  │
-           │ peer-relay (UDP 40000)            │ WireGuard tunnel
-           ▼                                  ▼
-┌─────────────────────┐   ┌──────────────────────────────────┐
-│  Relay VPS (阿里云)  │   │  Homelab Host (m600)             │
-│  tag:relay           │   │  tag:homelab                     │
-│  只做 UDP 中继       │   │  dnsmasq + Traefik + 全部服务    │
-│  不参与 DNS/路由     │   │  DNS/反代/服务 一切不变          │
-└─────────────────────┘   └──────────────────────────────────┘
-```
+- ACL 已包含 `tag:relay` 与 `tailscale.com/cap/relay` grant，且**先保存、再** `tailscale up --advertise-tags=tag:relay`，见 [tailscale.md](tailscale.md#acl)
+- relay-vps 与使用它的客户端都是 Tailscale ≥ 1.86
+- 使用方必须能用 UDP 到达 relay 的端口。发不出公网 UDP 的节点（如 [WSL2](tailscale-wsl.md)）用不了
 
-**关键点**：Relay VPS 只在 L3（WireGuard UDP）层面参与，不接触 DNS 解析、HTTPS 路由或任何应用层逻辑。homelab 主机（m600）的 dnsmasq、Traefik、systemd-resolved 配置**完全不变**。
-
-## 与现有配置的冲突点
-
-### ⚠️ ACL 合并
-
-现有 ACL（[tailscale.md](tailscale.md) 中的最小示例）只有 `tag:homelab`，需要合并 `tag:relay` 及其 grant。
-
-现有 ACL：
-
-```json
-{
-  "tagOwners": {
-    "tag:homelab": ["autogroup:admin"]
-  },
-  "grants": [
-    {
-      "src": ["autogroup:member"],
-      "dst": ["tag:homelab"],
-      "ip": ["*"]
-    }
-  ]
-}
-```
-
-合并后：
-
-```json
-{
-  "tagOwners": {
-    "tag:homelab": ["your-email@example.com"],
-    "tag:relay": ["your-email@example.com"]
-  },
-  "grants": [
-    {
-      "src": ["autogroup:member"],
-      "dst": ["tag:homelab"],
-      "ip": ["*"]
-    },
-    {
-      "src": ["*"],
-      "dst": ["tag:relay"],
-      "app": {
-        "tailscale.com/cap/relay": [{}]
-      }
-    }
-  ]
-}
-```
-
-> [!IMPORTANT]
-> `tagOwners` 统一改为邮箱。Free tailnet 上 `autogroup:admin` 作为 tagOwner 可能被拒绝（`requested tags [...] are invalid or not permitted`）。趁合并时将 `tag:homelab` 的 owner 也一并改为邮箱，避免后续授权失败。
-
-> [!WARNING]
-> ACL 必须在 `tailscale up --advertise-tags=tag:relay` **之前**保存到 Admin Console。顺序反了会导致授权被拒。如果已经失败，改完 ACL 后重新执行同一条 `tailscale up` 即可，不用 logout。
-
-### ⚠️ 两个 tag 的角色分离
-
-| 节点            | Tag           | 角色                                 | DNS                                | 路由                    |
-| --------------- | ------------- | ------------------------------------ | ---------------------------------- | ----------------------- |
-| m600（homelab） | `tag:homelab` | 服务端：Traefik + dnsmasq + 全部服务 | `--accept-dns=false`，运行 dnsmasq | 不做子网路由            |
-| VPS（relay）    | `tag:relay`   | 中继：仅转发 UDP                     | `--accept-dns=false`，保持系统 DNS | `--accept-routes=false` |
-
-> [!NOTE]
-> 不要给 VPS 加 `tag:homelab`，也不要给 m600 加 `tag:relay`（除非 m600 本身有公网 IP 且希望兼任中继）。角色分离可以避免 ACL 权限扩散。
-
-### ⚠️ DNS 互不干扰
-
-两台都用 `--accept-dns=false`，各自系统 DNS 独立：
-
-- **m600**：dnsmasq 处理 `*.homelab.com`，systemd-resolved 处理其他域名（见 [traefik.md](traefik.md#linuxnetworkmanager--systemd-resolved--dnsmasq)）
-- **VPS**：保持系统默认 DNS（如阿里云的 `100.100.2.136` 或手动设置的 `223.5.5.5`），不装 dnsmasq
-- **Admin Console Split DNS**（`*.homelab.com → m600 TS_IP`）只对开启 `accept-dns` 的客户端生效，两台服务器均不受影响
-
-> [!WARNING]
-> VPS 上 tailscaled 启动时可能仍会修改 `/etc/resolv.conf`（即使带了 `--accept-dns=false`）。建议在装 Tailscale **之前**锁定 DNS：
->
-> ```bash
-> # 1. 给 systemd-resolved 一个稳定兜底
-> sudo tee /etc/systemd/resolved.conf.d/stable-dns.conf > /dev/null << 'EOF'
-> [Resolve]
-> DNS=223.5.5.5 119.29.29.29
-> EOF
->
-> # 2. 切回 stub 模式，防止 tailscaled 覆盖
-> sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-> sudo systemctl restart systemd-resolved
-> ```
-
-## Relay VPS 部署步骤
-
-> [!NOTE]
-> 以下仅列出 VPS 侧操作。homelab 主机（m600）**不需要任何改动**。
+## 部署步骤
 
 ### 1. 放行 UDP 端口
 
-确保 VPS 防火墙（安全组 / ufw）放行：
+在云厂商控制台的**安全组入站规则**里放行：
 
-- **UDP 40000**：Peer Relay 中继端口（可自选）
-- **UDP 41641**：Tailscale daemon 默认打洞端口
+- **UDP 40000**：Peer Relay 中继端口（必需）
+- **UDP 41641**：tailscaled 默认端口（可选，只影响直连打洞）
 
-```bash
-# 如果 VPS 启用了 ufw
-sudo ufw allow 40000/udp
-sudo ufw allow 41641/udp
-```
+> [!IMPORTANT]
+> 安全组在主机外部，必须在控制台放行。当前 VPS（腾讯云 CVM，Debian）未启用 `ufw` / `nftables` / `firewalld`，只需要改安全组。除此之外 Tailscale 不需要任何入站端口。
 
 ### 2. 安装 Tailscale
 
@@ -138,17 +29,17 @@ curl -fsSL https://tailscale.com/install.sh | sh
 tailscale version  # 确认 >= 1.86
 ```
 
-### 3. 加入 Tailnet
+### 3. 加入 tailnet
 
 ```bash
-tailscale up \
+sudo tailscale up \
     --hostname=relay-vps \
-    --accept-routes=false \
     --accept-dns=false \
-    --advertise-tags=tag:relay
+    --advertise-tags=tag:relay \
+    --operator=$USER
 ```
 
-按提示在浏览器打开授权 URL 登录。
+`--accept-dns=false` 让 VPS 保持系统 DNS，不参与任何 Split DNS；`--operator` 让后续 `tailscale set`、`tailscale debug` 不再需要 sudo。
 
 ### 4. 启用 Peer Relay
 
@@ -156,50 +47,60 @@ tailscale up \
 tailscale set --relay-server-port=40000
 ```
 
-验证端口监听：
+固定端口是为了和安全组规则一一对应。不设置或设为 `""` 表示关闭中继；`0` 由内核随机选端口，无法提前放行。
+
+> [!IMPORTANT]
+> 只执行 `tailscale up --advertise-tags=tag:relay` 不会开启中继，必须再执行这一步。
+
+## 验证
+
+在 VPS 上：
 
 ```bash
-ss -ulnp | grep 40000
-# UNCONN 0 0 0.0.0.0:40000 0.0.0.0:* users:(("tailscaled",...))
+tailscale debug prefs | grep RelayServerPort   # "RelayServerPort": 40000
+ss -ulnH 'sport = :40000'                      # 0.0.0.0:40000 与 [::]:40000
+tailscale debug peer-relay-sessions
+# Server port: 40000
+# Sessions count: <N>
 ```
 
-### 5. 验证
-
-在任意国内 Tailnet 设备上：
+在使用方设备上：
 
 ```bash
-tailscale status
-# 预期看到 peer-relay <VPS_IP>:40000:vni:1
-
-tailscale ping --c=5 <对端 Tailscale IP>
-# 预期 RTT 显著降低（如 160ms → 30ms）
+tailscale debug peer-relay-servers             # 应列出 relay-vps 的 Tailscale IP
+tailscale status                               # 走中继时显示 peer-relay <ip:port>:vni:<N>
+tailscale ping <对端 Tailscale IP>             # 走中继时显示 via peer-relay(...)
 ```
+
+手机上用设备详情页的 Ping 面板，走中继时显示 `Peer relayed connection`。
+
+> [!NOTE]
+> `Sessions count` 为 `0` 是正常的：只有两端都无法直连、又都能用 UDP 到达 relay 时才会建立会话。
 
 ## Peer Relay 不是什么
 
-- **不是 Exit Node**：不会让其他设备从 VPS 出网。需要另外 `--advertise-exit-node`
+- **不是 Exit Node**：不会让其他设备从 VPS 出网
 - **不是 Subnet Router**：不做子网路由
-- **不替代 Split DNS**：远程设备访问 `*.homelab.com` 的 DNS 解析仍由 m600 的 dnsmasq 提供，Peer Relay 只加速隧道本身
+- **不替代 Split DNS**：`*.homelab.com` 的解析仍由 m600 的 dnsmasq 提供，Peer Relay 只加速隧道本身
+
+VPS 上另有 tailnet 内的 Serve 服务，不归本仓库管理。
 
 ## 回滚
 
-如需在 VPS 上完全移除：
+只关闭 relay，不卸载 Tailscale（VPS 上其他服务仍依赖它）：
 
 ```bash
-tailscale down
-tailscale logout
-sudo apt remove tailscale  # 或对应包管理器
-sudo rm -rf /var/lib/tailscale
+tailscale set --relay-server-port=""
 ```
 
-homelab 主机无需任何操作，其他设备会自动回退到 DERP。
+然后在安全组删除 UDP 40000 规则（保留 41641），并在 ACL 里删除 `tag:relay` 的 relay grant。其他设备会自动回退到 DERP。
 
 ## 参考
 
 > [!IMPORTANT]
 > 修改本文档前，先查阅以下官方链接验证配置是否过时。
 
-- [Tailscale Peer Relays 官方公告](https://tailscale.com/blog/peer-relays)
+- [Tailscale Peer Relays](https://tailscale.com/docs/features/peer-relay)
+- [Tailscale CLI：set](https://tailscale.com/docs/reference/tailscale-cli#set)
 - [Tailscale ACL Tags](https://tailscale.com/kb/1068/acl-tags)
 - [Tailscale ACL Grants](https://tailscale.com/kb/1324/acl-grants)
-- [国内自建 Peer Relay 实现 Tailscale 加速（部署实录）](https://5km.studio/blog/tailscale-peer-relay)

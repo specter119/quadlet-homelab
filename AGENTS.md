@@ -2,20 +2,21 @@
 
 ## 文档索引
 
-| 文档                  | Scope                                                             |
-| --------------------- | ----------------------------------------------------------------- |
-| README.md             | 项目简介、服务列表（只保留 description）                          |
-| AGENTS.md             | 文档契约、冷启动/维护入口、写作规范、新建服务检查清单             |
-| docs/dotter.md        | Dotter 文件映射规则、变量契约、覆盖规则、共享/私有变量约定        |
-| docs/quadlet.md       | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
-| docs/secrets.md       | Secrets 格式定义、一致性检查                                      |
-| docs/hooks.md         | pre/post_deploy 脚本、handlebars 转义                             |
-| docs/traefik.md       | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件         |
-| docs/tailscale.md     | Tailscale 远程访问配置（替代本机 DNS 方案）                       |
-| docs/tailscale-wsl.md | WSL2 主机接入 Tailscale 的差异（`worklab.com`、双 dnsmasq 实例）  |
-| docs/log-notify.md    | 日志命中正则 → 桌面通知（规则格式、接入方式、TODO）               |
-| docs/browser-trust.md | Windows/Linux host 浏览器信任本地 Traefik 证书的验证记录          |
-| `docs/<service>.md`   | 仅记录服务相对基础模板的特殊处理、额外依赖与官方参考              |
+| 文档                    | Scope                                                             |
+| ----------------------- | ----------------------------------------------------------------- |
+| README.md               | 项目简介、服务列表（只保留 description）                          |
+| AGENTS.md               | 文档契约、冷启动/维护入口、写作规范、新建服务检查清单             |
+| docs/dotter.md          | Dotter 文件映射规则、变量契约、覆盖规则、共享/私有变量约定        |
+| docs/quadlet.md         | Quadlet 文件类型、命名规范、网络架构、容器模板、Volume/Label 规范 |
+| docs/secrets.md         | Secrets 格式定义、一致性检查                                      |
+| docs/hooks.md           | pre/post_deploy 脚本、handlebars 转义                             |
+| docs/traefik.md         | Traefik 配置：SSL、域名解析（本机访问）、架构设计、中间件         |
+| docs/tailscale.md       | 叠加在本机 DNS 之上的 tailnet 层：职责、ACL、Split DNS、时序      |
+| docs/tailscale-wsl.md   | WSL2 主机接入 Tailscale 的差异（`worklab.com`）                   |
+| docs/tailscale-relay.md | relay-vps 的 Peer Relay 部署                                      |
+| docs/log-notify.md      | 日志命中正则 → 桌面通知（规则格式、接入方式、TODO）               |
+| docs/browser-trust.md   | Windows/Linux host 浏览器信任本地 Traefik 证书的验证记录          |
+| `docs/<service>.md`     | 仅记录服务相对基础模板的特殊处理、额外依赖与官方参考              |
 
 ## 文档契约
 

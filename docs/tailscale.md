@@ -1,161 +1,279 @@
 # Tailscale 远程访问配置
 
-通过 Tailscale Split DNS，从任意 tailnet 设备使用**相同域名**访问 homelab 服务。
+在 [traefik.md](traefik.md) 的本机 DNS 之上叠加 Tailscale：tailnet 设备用**相同域名**访问 homelab 服务，m600 同时消费 tailnet 下发的 Split DNS 与 MagicDNS。
 
-> WSL2 主机（`worklab.com`）的差异见 [tailscale-wsl.md](tailscale-wsl.md)。
+## 文档分层
+
+| 文档                                     | 内容                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| [traefik.md](traefik.md)                 | 基础层：本机 dnsmasq（Linux / WSL 两个分支），不依赖 Tailscale，单独可用  |
+| 本文                                     | tailnet 层：职责划分、ACL、Split DNS、`dnsmasq@tailnet`、时序、验证、附录 |
+| [tailscale-wsl.md](tailscale-wsl.md)     | 只写 WSL2 主机（`worklab.com`）相对本文的差异                             |
+| [tailscale-relay.md](tailscale-relay.md) | 只写 relay-vps 的 Peer Relay                                              |
+
+> [!IMPORTANT]
+> 叠加 Tailscale 不修改基础层的任何文件：主实例的 `homelab.conf`、`upstream.conf`、resolved drop-in、NetworkManager dispatcher 都保持 [traefik.md](traefik.md) 的原样。移除 Tailscale 时只需停用 `dnsmasq@tailnet`。
+
+## 占位符
+
+| 占位符          | 含义                                                  |
+| --------------- | ----------------------------------------------------- |
+| `$TS_IP`        | 当前机器的 Tailscale IPv4，`TS_IP=$(tailscale ip -4)` |
+| `<M600_TS_IP>`  | m600 的 Tailscale IP                                  |
+| `<WSL_TS_IP>`   | office-wsl 的 Tailscale IP                            |
+| `<tailnet>`     | tailnet 名，MagicDNS 后缀为 `<tailnet>.ts.net`        |
+| `<owner-email>` | ACL `tagOwners` 里的账号邮箱                          |
+
+`<WSL_IP>`（WSL eth0 地址）的定义见 [traefik.md](traefik.md)。
+
+## 职责
+
+一个 zone 只有一个 owner，避免两套配置各答一半：
+
+| Zone          | Owner                           | 说明                                                                        |
+| ------------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `homelab.com` | m600 的 dnsmasq                 | 本机问主实例（答 `127.0.0.1`），tailnet 问 `dnsmasq@tailnet`（答 `$TS_IP`） |
+| `worklab.com` | office-wsl 的 `dnsmasq@tailnet` | 经 Admin Console Split DNS，见 [tailscale-wsl.md](tailscale-wsl.md)         |
+| `*.ts.net`    | tailscaled MagicDNS             | 从 netmap 直接回答；dnsmasq 不转发                                          |
+| 其他          | `upstream.conf` 里的上游 DNS    | 由 NetworkManager dispatcher 维护                                           |
+
+| 节点       | Tag           | `accept-dns`             | 角色                                                         |
+| ---------- | ------------- | ------------------------ | ------------------------------------------------------------ |
+| m600       | `tag:homelab` | `true`                   | Traefik + 全部服务；主实例 + `dnsmasq@tailnet`               |
+| office-wsl | `tag:homelab` | 默认                     | `worklab.com` 服务，见 [tailscale-wsl.md](tailscale-wsl.md)  |
+| relay-vps  | `tag:relay`   | `false`                  | 只做 Peer Relay，见 [tailscale-relay.md](tailscale-relay.md) |
+| 其他客户端 | 成员设备      | 需要 Split DNS 时 `true` | 不开就拿不到 Split DNS，只能自己写 hosts                     |
+
+> [!NOTE]
+> 不要给 relay-vps 加 `tag:homelab`，也不要给 m600 加 `tag:relay`。角色分离可以避免 ACL 权限扩散。
 
 ## 架构
 
-以 Dozzle 为例，本地和远程使用相同 URL（`https://dozzle.homelab.com`）：
+以 Dozzle 为例，本机与远程使用相同 URL（`https://dozzle.homelab.com`）：
 
 ```mermaid
 flowchart TB
-    remote["Remote device\nTailscale client"]
-    admin_dns["Tailscale Split DNS\n*.homelab.com -> TS_IP"]
+    remote["tailnet 设备\naccept-dns=true"]
+    admin_dns["Admin Console Split DNS\nhomelab.com -> M600_TS_IP\nworklab.com -> WSL_TS_IP"]
 
     subgraph host["Homelab host: m600"]
-        ts["tailscaled\ntailscale0 = TS_IP"]
-        resolved["systemd-resolved\nrouting domain: ~homelab.com"]
-        dnsmasq["dnsmasq\nlisten: 127.0.0.1, TS_IP"]
-        traefik["Traefik\nHost-based routing"]
-        svc["Podman service\nDozzle / marimo / ..."]
+        app["本机应用"]
+        resolved["systemd-resolved\nGlobal: ~homelab.com -> 127.0.0.1\ntailscale0: ~homelab.com / ~ts.net / ~worklab.com"]
+        main["dnsmasq 主实例\nlisten: 127.0.0.1\n答 127.0.0.1"]
+        tailnet["dnsmasq@tailnet\nlisten: TS_IP\n答 TS_IP"]
+        ts["tailscaled\nMagicDNS"]
+        upstream["上游 DNS\nupstream.conf"]
+        traefik["Traefik"]
+        svc["Podman service"]
     end
 
-    remote -->|"DNS query: service.homelab.com"| admin_dns
-    admin_dns -->|"UDP 53 over tailnet"| dnsmasq
-    dnsmasq -->|"A = TS_IP"| remote
-    remote -->|"HTTPS Host: service.homelab.com"| traefik
-    traefik -->|"labels + traefik.network"| svc
+    app --> resolved
+    resolved -->|"~homelab.com"| main
+    resolved -->|"~ts.net / ~worklab.com / ~homelab.com"| ts
+    ts -.->|"homelab.com -> TS_IP:53"| tailnet
+    main -->|"其他域名（no-resolv）"| upstream
 
-    resolved -->|"*.homelab.com"| dnsmasq
-    resolved -->|"other domains"| upstream["normal upstream DNS"]
-    dnsmasq -.->|"bind-dynamic listens when TS_IP appears"| ts
+    remote -->|"DNS: service.homelab.com"| admin_dns
+    admin_dns -->|"UDP 53 over tailnet"| tailnet
+    remote -->|"HTTPS Host: service.homelab.com"| traefik
+    app -->|"HTTPS"| traefik
+    traefik -->|"labels + traefik.network"| svc
 ```
 
-本机访问路径：`systemd-resolved -> dnsmasq(127.0.0.1) -> Traefik`。
+## ACL
 
-远程访问路径：`Tailscale Split DNS -> dnsmasq(TS_IP) -> Traefik`。
-
-## 前置条件
-
-- **已完成 [traefik.md](traefik.md) 的 Linux DNS 配置**（NetworkManager + systemd-resolved + dnsmasq）
-- Tailscale 已安装并登录 (`tailscale status`)
-- [Tailscale Admin Console](https://login.tailscale.com/admin) 访问权限
-- sudo 权限
-
-## 配置步骤
-
-### 1. 启动 Tailscale 并添加标签
-
-在 [Tailscale ACL](https://login.tailscale.com/admin/acls) 中使用最小可用示例（只允许成员访问 homelab server）：
+> [!NOTE]
+> 以下是节选，只列本仓库依赖的部分。
 
 ```json
 {
   "tagOwners": {
-    "tag:homelab": ["autogroup:admin"]
+    "tag:homelab": ["<owner-email>"],
+    "tag:relay": ["<owner-email>"]
   },
   "grants": [
     {
       "src": ["autogroup:member"],
       "dst": ["tag:homelab"],
       "ip": ["*"]
+    },
+    {
+      "src": ["tag:homelab"],
+      "dst": ["tag:homelab"],
+      "ip": ["tcp:22", "tcp:80", "tcp:443", "udp:53", "tcp:53"]
+    },
+    {
+      "src": ["*"],
+      "dst": ["tag:relay"],
+      "app": { "tailscale.com/cap/relay": [] }
+    },
+    {
+      "src": ["autogroup:member", "tag:homelab"],
+      "dst": ["tag:relay"],
+      "ip": ["tcp:443"]
     }
   ]
 }
 ```
 
-然后启动 Tailscale 并获取 IP：
+- `member → homelab`：手机、PC 访问 homelab，Split DNS 生效的前置条件
+- `homelab → homelab`：homelab 节点互访。不加时两台 tagged 节点不会出现在彼此的 `tailscale status` 里，`tailscale ping` 报 `no matching peer`。`tcp:22` 用于 homelab 节点间 SSH，跨主机 DNS 需要 `udp:53`、`tcp:53`
+- `* → relay`：Peer Relay 许可，见 [tailscale-relay.md](tailscale-relay.md)
+- `→ relay tcp:443`：只有 relay-vps 上另外提供 tailnet 内 Serve 服务时才需要，否则可删
+
+> [!IMPORTANT]
+> ACL 必须在 `tailscale up --advertise-tags=...` **之前**保存到 [Admin Console](https://login.tailscale.com/admin/acls)，否则授权被拒。已经失败时，改完 ACL 后重新执行同一条 `up` 即可，不用 logout。
+
+> [!TIP]
+> 第一条 `ip: ["*"]` 会放行所有端口。只需要 Web 时收窄到 `tcp:80`、`tcp:443`，但跨机 DNS 仍要保留 `udp:53`、`tcp:53`，否则 Split DNS 失效。
+
+## 配置步骤（m600）
+
+### 1. 启动 Tailscale
 
 ```bash
-sudo tailscale up --accept-dns=false --advertise-tags=tag:homelab
+sudo tailscale up --accept-dns=true --advertise-tags=tag:homelab
 TS_IP=$(tailscale ip -4)
-echo "Tailscale IP: $TS_IP"
-# 输出示例: 100.94.150.93
 ```
 
-后续步骤都使用 `$TS_IP` 变量。
+> [!NOTE]
+> 带 flag 的 `tailscale up` 会把未写出的项按默认值处理，若因此改变现有设置就报错（除非加 `--reset`）。只改单项时用 `tailscale set`，它只动显式给出的字段：`sudo tailscale set --accept-dns=true`。
 
-如果多次修改配置不确定当前状态，可先重置再重新执行：
+> [!IMPORTANT]
+> `accept-dns=true` 让 m600 自己接收 tailnet 下发的 DNS：`worklab.com` 的 Split DNS 与 MagicDNS 的 `ts.net`。`homelab.com` 不依赖它，主实例走 `resolved -> 127.0.0.1`，tailscaled 停掉也能解析。
+
+### 2. 起 `dnsmasq@tailnet` 实例
+
+dnsmasq 的 `address=` 是全局配置，无法按查询来源返回不同 A 记录：本机要答 `127.0.0.1`，tailnet 设备要答 `$TS_IP`。因此基础层的主实例保持不变，另起一个只监听 `$TS_IP` 的实例。
+
+Arch 的 dnsmasq 包没有实例模板，需要自己写 unit（Debian 自带 `dnsmasq@.service`，见 [tailscale-wsl.md](tailscale-wsl.md)）：
 
 ```bash
-sudo tailscale up --reset
-sudo tailscale up --accept-dns=false --advertise-tags=tag:homelab
-```
+sudo tee /etc/systemd/system/dnsmasq@.service > /dev/null << 'EOF'
+[Unit]
+Description=dnsmasq instance %i
+After=network.target
 
-### 2. 扩展 dnsmasq 监听 Tailscale IP
+[Service]
+ExecStartPre=/usr/bin/dnsmasq --test -C /etc/dnsmasq-%i.conf
+ExecStart=/usr/bin/dnsmasq -k -C /etc/dnsmasq-%i.conf --user=dnsmasq --pid-file
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+PrivateDevices=true
+ProtectSystem=full
 
-在 [traefik.md](traefik.md) 的基础配置上，让 dnsmasq 额外监听 Tailscale IP，并返回 `$TS_IP`（而非 127.0.0.1）：
-
-```bash
-# 更新 dnsmasq 配置（只用 listen-address，不要加 interface=tailscale0）
-sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << EOF
-listen-address=127.0.0.1,${TS_IP}
-bind-dynamic
-address=/.homelab.com/${TS_IP}
+[Install]
+WantedBy=multi-user.target
 EOF
 
-# 动态监听 Tailscale IP
-sudo install -d /etc/systemd/system/dnsmasq.service.d
-sudo tee /etc/systemd/system/dnsmasq.service.d/override.conf > /dev/null << 'EOF'
-[Unit]
-Wants=tailscaled.service
+sudo tee /etc/dnsmasq-tailnet.conf > /dev/null << EOF
+listen-address=${TS_IP}
+bind-dynamic
+no-resolv
+no-hosts
+domain-needed
+bogus-priv
+local=/homelab.com/
+address=/.homelab.com/${TS_IP}
+cache-size=0
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl restart dnsmasq
+sudo systemctl enable --now dnsmasq@tailnet
 ```
 
+> [!IMPORTANT]
+>
+> - 配置文件放在 `/etc/dnsmasq-tailnet.conf`，**不要**放进 `/etc/dnsmasq.d/`，否则主实例也会加载它并抢占端口。
+> - 主实例的 `homelab.conf` 只监听 `127.0.0.1`，不要再加 `$TS_IP`。两个实例都不能绑 wildcard，否则后启动的实例报 `Address already in use`。
+> - unit 不开 D-Bus（主实例已占用 D-Bus 名字），也不加 `User=`、`CapabilityBoundingSet=`：`bind-dynamic` 在降权后仍需要保留绑定 53 端口的能力。
+> - 实例没有 `server=`，只回答 `homelab.com`，不做递归。
+
+### 3. 配置 Split DNS（Admin Console）
+
+1. 打开 [Admin Console DNS 页面](https://login.tailscale.com/admin/dns)
+1. **Nameservers** → **Add nameserver** → **Custom**
+1. 添加两条，均勾选 **Restrict to domain**（Split DNS）：
+   - `homelab.com` → `<M600_TS_IP>`
+   - `worklab.com` → `<WSL_TS_IP>`
+1. 不要开启 **Override local DNS**：Split DNS 只定向这两个域，不接管客户端全局 DNS
+
+`*.ts.net` 由 MagicDNS 自动回答，不需要添加 nameserver。
+
+## 时序
+
+- **主实例不等 tailscaled**：本机 `homelab.com` 必须在 tailscaled 未就绪时也能回答。基础层不引用 tailscaled，也没有 `Wants=`。
+- **tailnet 实例靠 `bind-dynamic` 等 `$TS_IP`**：tailscaled 晚于它启动或重启，`tailscale0` 出现时它自动开始监听，不需要重启实例，也不需要 `After=tailscaled`。
+- **tailscaled 不依赖 dnsmasq**：它只需要 systemd-resolved。tailscaled 重启只会短暂影响 `worklab.com` 与 `*.ts.net`。
+- **本机结果可能是两个地址之一**：tailscale 在线时，resolved 对 `~homelab.com` 同时查询 Global（主实例）与 `tailscale0`（经 Split DNS 回到 tailnet 实例），取先返回的结果，所以 `resolvectl query` 可能得到 `127.0.0.1` 或 `$TS_IP`，两者都能访问 Traefik。tailscaled 不在时只剩 `127.0.0.1`。
+- **耦合约束**：两种结果意味着 Traefik 会看到两种来源地址，`traefik.trusted_source_ranges` 必须同时包含 `127.0.0.1/32` 和 `100.64.0.0/10`（见 [traefik.md](traefik.md#%E5%85%B1%E4%BA%AB%E4%B8%AD%E9%97%B4%E4%BB%B6)）。
+- **`$TS_IP` 变化**：节点删除重建后 IP 会变，需要更新 `/etc/dnsmasq-tailnet.conf` 与 Admin Console 的路由。
+
 > [!NOTE]
-> `bind-dynamic` 适用于稍后才出现的 Tailscale 地址。这里保留 `Wants=tailscaled.service`，用于在 dnsmasq 被单独拉起时一并启动 tailscaled；若 tailscaled 已由系统独立启用，这条 `Wants=` 可按启动意图省略。不能添加 `After=network-online.target`：上游 `dnsmasq.service` 已经 `Before=network-online.target`，再添加反向顺序会形成 systemd ordering cycle，导致 dnsmasq 无法启动。`Wants` 不会像 `Requires` 那样因 tailscaled 停止而强制停止 dnsmasq。
+> dnsmasq 上游的维护方式属于基础层，见 [traefik.md](traefik.md)；容器的外部解析见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
-#### systemd 启动依赖边界
+## 验证与排障
 
-```mermaid
-flowchart LR
-    tailscaled["tailscaled.service\ncreates tailscale0 / TS_IP"]
-    dnsmasq["dnsmasq.service\nbinds 127.0.0.1 + TS_IP"]
-    resolved["systemd-resolved.service\nroutes ~homelab.com"]
-    network_online["network-online.target"]
+```bash
+# 1. 两个监听、两个进程都在
+ss -ulnH 'sport = :53'          # 127.0.0.1:53 与 $TS_IP:53
+systemctl is-active dnsmasq dnsmasq@tailnet
 
-    tailscaled -.->|"TS_IP appears; bind-dynamic adds listener"| dnsmasq
-    dnsmasq -.->|"Wants"| tailscaled
-    dnsmasq -->|"serves local zone"| resolved
-    dnsmasq -.->|"upstream already has Before=network-online.target"| network_online
-    network_online -.->|"do not add After here"| dnsmasq
+# 2. 两个实例各答各的
+dig +short @127.0.0.1 dozzle.homelab.com   # 127.0.0.1
+dig +short @$TS_IP dozzle.homelab.com      # $TS_IP
+dig @$TS_IP example.com | grep status      # REFUSED：tailnet 实例不做递归
+
+# 3. 系统解析链
+resolvectl query dozzle.homelab.com          # 127.0.0.1 或 $TS_IP 都正常，见「时序」
+resolvectl query relay-vps.<tailnet>.ts.net  # link: tailscale0
+
+# 4. Tailscale 状态
+tailscale status                           # 末尾不应有 resolved-nm 的 Health check
+
+# 5. Traefik 的两条来源路径都不能是 403
+for ip in 127.0.0.1 $TS_IP; do
+  curl -sk -o /dev/null -w '%{http_code}\n' \
+    --resolve traefik.homelab.com:443:$ip https://traefik.homelab.com/
+done
 ```
 
-`Wants=tailscaled.service` 仅用于把 tailscaled 拉入同一启动事务。它比 `Requires=` 更温和：tailscaled 重启或短暂不可用时，不会强制把本机 DNS 服务一并拉停。
+远程设备（需已连接 Tailscale 且 `accept-dns=true`）：
 
-> [!TIP]
-> `/etc/dnsmasq.d/*.conf` 可能默认未启用，需要在 `/etc/dnsmasq.conf` 里开启 `conf-dir`。
+```bash
+dig @$TS_IP dozzle.homelab.com +short      # 应返回 $TS_IP
+```
 
-### 3. 配置 Tailscale Split DNS（Admin Console）
+| 现象                                                                  | 处理                                                                                                                    |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `tailscale status` 有 `resolved-nm` 告警                              | `/etc/resolv.conf` 不是指向 resolved stub 的 symlink，按 [traefik.md](traefik.md) 第 1 步修复，再重启 tailscaled        |
+| 只有 `127.0.0.1:53`，没有 `$TS_IP:53`                                 | 看 `systemctl status dnsmasq@tailnet`，确认 `tailscale0` 已有地址、`listen-address` 与当前 `$TS_IP` 一致                |
+| `dnsmasq@tailnet` 报 `Address already in use`                         | 另一个实例绑了 wildcard 或加载了同一份配置，检查 `homelab.conf` 与 conf-dir                                             |
+| 远程设备解析失败                                                      | `tailscale status` 确认连通，再 `dig @$TS_IP dozzle.homelab.com`                                                        |
+| Split DNS 未生效                                                      | 确认 Admin Console 已保存，然后重连客户端（桌面端重开 Tailscale，Linux `systemctl restart tailscaled`，移动端断开重连） |
+| `worklab.com` 解析慢，或出现 `can't reach the configured DNS servers` | office-wsl 离线或全部走 DERP，不是本机配置问题，见 [tailscale-wsl.md](tailscale-wsl.md)                                 |
 
-1. 打开 [Tailscale Admin Console](https://login.tailscale.com/admin/dns)
-1. 进入 **DNS** 页面
-1. 在 **Nameservers** → **Add nameserver** → **Custom**
-1. 添加 Split DNS 配置：
-   - **Nameserver**: homelab server 的 `$TS_IP`
-   - **Restrict to domain**: `homelab.com`
-1. 保存
+## 离线行为
 
-> [!NOTE]
-> 配置后，tailnet 内所有设备查询 `*.homelab.com` 时会自动转发到 homelab server 的 dnsmasq。
+| 场景                       | 结果                                                                        |
+| -------------------------- | --------------------------------------------------------------------------- |
+| m600 本机，tailscaled 停止 | `homelab.com` 可用（只剩 `127.0.0.1` 路径）；`ts.net`、`worklab.com` 不可用 |
+| m600 本机，外网断开        | `homelab.com` 可用，不碰网络                                                |
+| 同 LAN 的 tailnet 设备     | 可用：WireGuard 直连仍在，`$TS_IP:53` 可达                                  |
+| 跨网设备                   | 需要外网或 DERP，本来就要外网才可达                                         |
 
-### 附录：FlClash 与 Tailscale 共存
+## 附录：FlClash 与 Tailscale 共存
 
 Android 上同时使用 FlClash 和 Tailscale 时，在 FlClash 中配置域名服务器策略：
 
 **工具** → **基本配置** → **DNS** → **域名服务器策略** → 新建：
 
 - 域名：`+.homelab.com`
-- 服务器：`<TS_IP>`（如 `100.94.150.93`）
+- 服务器：`<M600_TS_IP>`
 
-### 附录：Linux mihomo（Clash.Meta）与 Tailscale 共存
+## 附录：Linux mihomo（Clash.Meta）与 Tailscale 共存
 
 Linux 上若启用 mihomo TUN + `enhanced-mode: fake-ip`，**必须**把 Tailscale 相关后缀同时加入 DNS 旁路与直连规则。只做直连规则不够：域名仍会分到 fake-ip（`28.0.0.0/8`），而 `tailscaled` 以 root 运行、不在 mihomo 的 per-uid 隧道里，会表现为 `NoState` / `controlplane.tailscale.com` register `context deadline exceeded`。
-
-#### 共存拓扑
 
 ```mermaid
 flowchart TB
@@ -173,14 +291,11 @@ flowchart TB
 
     tailscaled -->|"must use real DNS for tailscale.com"| upstream
     mihomo_dns -.->|"fake-ip allowed for normal proxied domains"| app
-
 ```
 
-关键取舍：
-
 - `mihomo` 可以给普通代理域名返回 fake-ip，但 Tailscale 控制面域名必须走真实解析和直连。
-- `dnsmasq` 只负责 `*.homelab.com` 权威解析，不替代 mihomo 的代理 DNS，也不替代系统默认 DNS。
-- `systemd-resolved` 负责宿主机的 routing domain；Podman 自定义 bridge 的容器 DNS 规则见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
+- mihomo 不替代 dnsmasq：`*.homelab.com` 由 dnsmasq 回答，mihomo 只处理代理 DNS 与分流。
+- Podman 自定义 bridge 的容器 DNS 见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
 本仓库不管理 mihomo，只记录 Tailscale 控制面需要真实 DNS 与直连这一边界。mihomo 侧的必要 pattern：
 
@@ -219,134 +334,10 @@ dig @127.0.0.1 -p 1053 www.google.com +short
 tailscale status
 ```
 
-> [!NOTE]
-> mihomo **不**替代本机 dnsmasq。`*.homelab.com` 权威解析与 tailnet Split DNS（`TS_IP:53`）仍由 dnsmasq 负责；mihomo 只处理代理 DNS / 分流。
-
-> [!NOTE]
-> Traefik 仍是 homelab 服务的统一入口。Tailscale/mihomo 只改变宿主机的解析与出站路径；`traefik.network` 的 Podman 自定义 bridge DNS 配置和外部解析排障统一见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
-
-## 验证
-
-### 本机验证
-
-```bash
-# DNS 解析
-dig dozzle.homelab.com +short
-# 应返回: $TS_IP
-
-# HTTP 访问
-curl -k https://dozzle.homelab.com
-```
-
-### 远程设备验证（手机/其他电脑）
-
-确保设备已连接 Tailscale，然后：
-
-```bash
-# DNS 解析（指定 nameserver 测试）
-dig @$TS_IP dozzle.homelab.com +short
-# 应返回: $TS_IP
-
-# 浏览器访问
-# https://dozzle.homelab.com
-```
-
-## 故障排除
-
-### dnsmasq 未运行
-
-```bash
-# 检查监听端口
-ss -u -lpn | rg ':53'
-# 应看到 127.0.0.1:53 和 ${TS_IP}:53
-
-# 检查配置语法
-cat /etc/dnsmasq.d/homelab.conf
-
-# 重启 dnsmasq
-sudo systemctl restart dnsmasq
-```
-
-### 远程设备 DNS 解析失败
-
-```bash
-# 检查 Tailscale 连接
-tailscale status
-
-# 手动测试 DNS
-dig @$TS_IP dozzle.homelab.com
-```
-
-### Split DNS 未生效
-
-1. 确认 Tailscale Admin Console 配置已保存
-1. 在客户端重启 Tailscale：
-   - macOS/Windows: 退出并重新打开 Tailscale
-   - Linux: `sudo systemctl restart tailscaled`
-   - Android/iOS: 断开并重新连接
-
-### 本机解析慢 / 首次查询延迟
-
-```bash
-resolvectl status
-resolvectl query dozzle.homelab.com
-```
-
-- `Global DNS Servers` 不应是 `127.0.0.1`
-- `Global` 应保留 `DNS Servers: 127.0.0.1` 和 `DNS Domain: ~homelab.com`；本方案不要求启用 Tailscale MagicDNS
-
-## 待验证
-
-2026-11-20 记录，均未实施。
-
-### `local-ttl`
-
-两个 dnsmasq 实例都没有设 `local-ttl`，实测 `worklab.com` 的应答 TTL 为 `0`（主实例与 tailnet 实例一致），按 DNS 语义客户端不应缓存，每次访问都要重新查询。
-
-拟在 `/etc/dnsmasq.d/worklab.conf` 与 `/etc/dnsmasq-tailnet.d/tailnet.conf` 各加一行 `local-ttl=300`。
-
-- 收益：远端 tailnet 设备不必每次经 DERP 往返；Windows 侧 NRPT 也能省掉重复查询
-- 代价：地址变更后，最长 300s 内客户端仍拿到旧 IP。影响面仅限 `worklab.com` 这个 zone，不改变其他域名的解析行为
-- `neg-ttl` 是另一项配置，本次不涉及；当前 `local=/worklab.com/` 加通配 `address=` 让该 zone 没有 NXDOMAIN 路径
-
-### dnsmasq 直接写死对端域名
-
-用 `local=` + `address=` 把对端域名固定成本机已知地址，省掉一次跨节点 DNS 查询：
-
-- office-wsl 解析 `homelab.com`：现在经 Split DNS 到 m600，实测 380ms~1.6s（随 DERP 抖动）；加 `local=/homelab.com/` + `address=/.homelab.com/100.94.150.93` 后走本地 dnsmasq，0ms
-- m600 解析 `worklab.com`：实测 m600 的 dnsmasq 是转发型，`worklab.com` 被送到公网并返回 `34.139.226.7`。需在 m600 的 dnsmasq 加 `local=/worklab.com/` + `address=/.worklab.com/100.88.64.107`，并让 systemd-resolved 把该域路由到 dnsmasq（`Domains=~worklab.com`）
-
-> [!NOTE]
-> 两侧都要显式写死，否则一端仍会绕公网。m600 侧的具体改法未验证。
-
-这也解释了 m600 访问 `worklab.com` 得到 404 的原因：`worklab.com` 在公网是别人的停放域名，通配 A 记录指向第三方占位站（实测任意子域同一地址，证书 `CN=*.wpengine.com`）。m600 没拿到本机地址，自然打到占位站。
-
-### m600 对 `worklab.com` 的转发
-
-现象：`dig +short worklab.com @100.94.150.93` 返回 `34.139.226.7`（公网地址，TTL 253），而同机 `homelab.com` 返回 `100.94.150.93`。可见 m600 的 dnsmasq 对 `worklab.com` 走的是递归转发，不是本地 zone。
-
-待确认：
-
-```bash
-tailscale debug prefs | grep -i corpDNS
-dig +short worklab.com
-```
-
-- `CorpDNS` 为 `false` 时，m600 不接收 Admin Console 下发的 Split DNS，`worklab.com` 只能靠本地 dnsmasq 或公网
-- 第二条不带 `@`，走系统解析链，用来判断 systemd-resolved 是否把该域转给了 dnsmasq
-
-[tailscale-relay.md](tailscale-relay.md) 里「m600 `--accept-dns=false`」的说法目前没有实测支撑，以上命令用于确认。
-
-### m600 当初关闭 `accept-dns` 的原因（假设）
-
-以下为假设，未验证：m600 的 `--accept-dns=false` 可能不是刻意设计，而是 setup 时序问题留下的结果 —— 预期是断外网也能用 homelab 域名直连，但 tailscaled 接管 DNS 后，`homelab.com` 变成必须先绕一趟 tailnet 才能解析，于是最后把这个开关关掉了。
-
-验证方式：看 m600 上 `tailscale debug prefs` 与 `/etc/resolv.conf` 的现状，确认是显式 `tailscale set` 还是 `tailscale up` 时的遗留。
-
 ## 安全注意事项
 
-1. **限制 DNS 递归**：当前 dnsmasq 只服务 `homelab.com` zone，不做通用递归解析
-1. **Tailscale ACL**：可在 Admin Console 限制哪些设备能访问 homelab server 的 DNS 端口
+- **tailnet 实例不递归**：`dnsmasq@tailnet` 只回答 `homelab.com`，没有上游。主实例只监听 `127.0.0.1`，不对 tailnet 暴露递归。
+- **不开 Override local DNS**：`homelab.com` 只经 Split DNS 定向到 m600，不接管客户端全局 DNS。
 
 ## 参考
 
@@ -356,6 +347,8 @@ dig +short worklab.com
 - [Tailscale Split DNS](https://tailscale.com/kb/1054/dns)
 - [Split DNS Policies](https://tailscale.com/kb/1588/split-dns-policies)
 - [MagicDNS](https://tailscale.com/kb/1081/magicdns)
+- [Linux DNS 配置](https://tailscale.com/docs/reference/linux-dns)
 - [tailscaled(8)](https://man.archlinux.org/man/tailscaled.8.en)
 - [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
+- [systemd-resolved(8)](https://man.archlinux.org/man/systemd-resolved.8.en)
 - [mihomo DNS / fake-ip](https://wiki.metacubex.one/config/dns/)
