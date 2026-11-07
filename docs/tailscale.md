@@ -225,17 +225,6 @@ tailscale status
 > [!NOTE]
 > Traefik 仍是 homelab 服务的统一入口。Tailscale/mihomo 只改变宿主机的解析与出站路径；`traefik.network` 的 Podman 自定义 bridge DNS 配置和外部解析排障统一见 [quadlet.md](quadlet.md#%E7%BD%91%E7%BB%9C%E6%9E%B6%E6%9E%84)。
 
-### 附录：修复 Tailscale UDP GRO warning
-
-```bash
-sudo tee /etc/NetworkManager/dispatcher.d/50-tailscale-gro > /dev/null << 'EOF'
-#!/bin/bash
-[[ "$1" == "enp1s0" && "$2" == "up" ]] && ethtool -K enp1s0 rx-udp-gro-forwarding on rx-gro-list off
-EOF
-
-sudo chmod +x /etc/NetworkManager/dispatcher.d/50-tailscale-gro
-```
-
 ## 验证
 
 ### 本机验证
@@ -368,6 +357,5 @@ dig +short worklab.com
 - [Split DNS Policies](https://tailscale.com/kb/1588/split-dns-policies)
 - [MagicDNS](https://tailscale.com/kb/1081/magicdns)
 - [tailscaled(8)](https://man.archlinux.org/man/tailscaled.8.en)
-- [NetworkManager-dispatcher(8)](https://man.archlinux.org/man/NetworkManager-dispatcher.8.en)
 - [dnsmasq(8)](https://man.archlinux.org/man/dnsmasq.8.en)
 - [mihomo DNS / fake-ip](https://wiki.metacubex.one/config/dns/)
