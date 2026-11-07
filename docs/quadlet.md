@@ -70,6 +70,107 @@ flowchart LR
 Quadlet 文件由 generator 生成，**不能用 `systemctl enable`**。
 自启动通过 `[Install] WantedBy=...` 配置，`daemon-reload` 时自动生效。
 
+## 宿主机网络就绪（network-online）
+
+rootless Quadlet 会隐式加上 `Wants=` / `After=podman-user-wait-network-online.service`（见 `man podman-systemd.unit` 的 “Implicit network dependencies”）。该 unit 每 0.5s 用 `systemctl is-active network-online.target` 轮询 **system** 级 target，90s 超时；超时不会阻止容器启动，但每个依赖它的 unit 都会被多推迟 90s。
+
+rootful Quadlet 直接依赖 `network-online.target`，所以只有 rootless 需要下面的宿主机前置。WSL 见[单容器服务模板](#%E5%8D%95%E5%AE%B9%E5%99%A8%E6%9C%8D%E5%8A%A1%E6%A8%A1%E6%9D%BF)里的 `DefaultDependencies=false`。
+
+```mermaid
+flowchart LR
+    um["user@UID.service"] -.->|Wants| no["network-online.target"]
+    nw["NM-wait-online"] -->|Before| no
+    pw["podman-user-wait"] -->|polls| no
+    qu["Quadlet units"] -->|After / Wants| pw
+```
+
+### 宿主机前置（稳定契约）
+
+适用：非 WSL、由 NetworkManager 管理网络、运行 rootless Quadlet 的主机。
+
+`network-online.target` 是 active target（`man systemd.special`）：只有某个 system unit `Wants=` 它才会在开机时启动，“在线”由网络管理器的 wait-online 服务定义。user unit 拉不起 system unit，所以宿主机必须同时满足两点：
+
+1. 有 system unit 拉起 `network-online.target`
+1. 启用 wait-online 服务
+
+触发条件（缺任一项时）：
+
+```bash
+systemctl --user status podman-user-wait-network-online.service   # Result: timeout
+systemctl is-active network-online.target                         # inactive
+systemctl is-enabled NetworkManager-wait-online.service           # disabled
+```
+
+修复（以目标用户身份执行，不要在 `sudo -i` 的 root shell 里执行，否则 `id -u` 为 0）：
+
+```bash
+sudo install -d /etc/systemd/system/user@$(id -u).service.d
+sudo tee /etc/systemd/system/user@$(id -u).service.d/10-wants-network-online.conf > /dev/null << 'EOF'
+[Unit]
+# Rootless Quadlet waits on system network-online.target via podman-user-wait-network-online;
+# user units cannot pull system units, so the user manager pulls it in. No After= on purpose.
+Wants=network-online.target
+EOF
+
+sudo systemctl enable NetworkManager-wait-online.service
+sudo systemctl daemon-reload
+sudo systemctl start network-online.target
+systemctl --user restart podman-user-wait-network-online.service
+```
+
+> [!NOTE]
+> 这里用 `user@UID.service` 的 drop-in，而不是 `systemctl add-wants multi-user.target network-online.target`。target 会把 `Wants=` 自动补成 `After=`，后者会让 `multi-user.target` / `graphical.target` 等到网络在线才到达。drop-in 只加 `Wants=`，不引入排序。
+
+> [!WARNING]
+> networkd 不管理任何链接时，不要启用 `systemd-networkd-wait-online.service`。它同样 `WantedBy=network-online.target`，会一直等到自己的超时。
+
+user unit 里写 `After=network-online.target` 不起作用：user manager 里没有这个 target。需要等网络的自定义 user unit 应依赖 `podman-user-wait-network-online.service`，例如 `raft-prepare.service` 和 `deepseek-harness-prepare.service`。
+
+### 本机特例：任一上联网卡即在线
+
+触发条件：原生 `NetworkManager-wait-online` 执行 `nm-online -s`，要等所有 autoconnect 配置收敛（startup complete），一个上联慢就会推迟“在线”。不带 `-s` 的 `nm-online` 只看 NM 全局状态，本机开机时 NM 在上联激活前就因 `lo`、`virbr0`、`Meta` 等外部设备进入过 `CONNECTED_LOCAL`，不能代表上联在线。
+
+适用边界：有多个上联、任意一个连上即可的主机。
+
+> [!IMPORTANT]
+> 下面的 `enp1s0`、`wlp3s0` 只是示例，对应作者本机的有线和无线物理网卡。使用时必须先用 `nmcli -t -f DEVICE,TYPE,STATE device status` 查看自己的物理设备（`ethernet` / `wifi`），再替换正则里的设备名；上联变化（换网卡、新增 USB 网卡）时同步修改。
+
+```bash
+sudo install -d /etc/systemd/system/NetworkManager-wait-online.service.d
+sudo tee /etc/systemd/system/NetworkManager-wait-online.service.d/10-any-uplink.conf > /dev/null << 'EOF'
+# Only the listed uplinks count; loopback, bridges and tunnels (lo, virbr0, Meta, tailscale0) are ignored on purpose.
+[Service]
+Environment=LC_ALL=C
+ExecStart=
+ExecStart=/bin/sh -c 'until /usr/bin/nmcli -t -f DEVICE,STATE device status 2>/dev/null | grep -qxE "(enp1s0|wlp3s0):connected"; do sleep 0.5; done'
+TimeoutStartSec=60s
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart NetworkManager-wait-online.service
+```
+
+- `LC_ALL=C` 固定 `nmcli` 的输出语言；`grep -x` 要求整行匹配，所以 `connected (externally)` 不会命中。
+- `TimeoutStartSec=60s` 必须保留：替换 `ExecStart` 后，`NM_ONLINE_TIMEOUT` 不再生效，而 oneshot 默认没有启动超时。没有它，无上联的开机会让 wait-online 一直挂着，`network-online.target` 永远不激活。
+- 超时后 wait-online 会出现在 `systemctl --failed` 里，这是预期行为。target 仍会经 `Wants=` 激活，podman 的 90s 等待能通过。
+
+> [!WARNING]
+> `ExecStart` 必须保持单行。从聊天或网页复制时被断行，systemd 会报 `Unbalanced quoting, ignoring` 并丢掉这行，wait-online 变成 `LoadState=bad-setting`。
+
+### 验证
+
+```bash
+systemctl is-active network-online.target NetworkManager-wait-online.service
+systemctl show -p LoadState NetworkManager-wait-online.service    # 必须是 loaded，不是 bad-setting
+systemctl --user is-active podman-user-wait-network-online.service
+```
+
+重启后，`systemctl show -p ActiveEnterTimestamp network-online.target` 应接近首个上联网卡激活的时间。
+
+参考：
+
+- <https://systemd.io/NETWORK_ONLINE>
+
 ## 单容器服务模板
 
 ```ini
@@ -421,7 +522,9 @@ Label=traefik.http.services.xxx-otlp.loadbalancer.server.port=4318
 
 ## 参考命令
 
-| 主题                               | 命令                      |
-| ---------------------------------- | ------------------------- |
-| Quadlet 参数                       | `man podman-systemd.unit` |
-| systemd 单元（specifiers、依赖等） | `man systemd.unit`        |
+| 主题                               | 命令                                                      |
+| ---------------------------------- | --------------------------------------------------------- |
+| Quadlet 参数                       | `man podman-systemd.unit`                                 |
+| systemd 单元（specifiers、依赖等） | `man systemd.unit`                                        |
+| `network-online.target` 语义       | `man systemd.special`                                     |
+| NetworkManager 在线判定            | `man nm-online`, `man NetworkManager-wait-online.service` |
