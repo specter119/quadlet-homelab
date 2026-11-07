@@ -88,8 +88,8 @@ sysctl net.ipv4.ip_unprivileged_port_start
 
 配置一次后自动解析所有子域名，新增服务无需手动添加条目。
 
-- **本机访问**：按本节配置即可
-- **远程访问**：在本节基础上，额外配置 [Tailscale](tailscale.md)
+- **本机访问**：按本节配置即可，本节不依赖 Tailscale
+- **远程访问**：在本节基础上，额外配置 [Tailscale](tailscale.md)；叠加 Tailscale 不修改本节的任何文件
 
 ### Linux：NetworkManager + systemd-resolved + dnsmasq
 
@@ -113,8 +113,14 @@ dns=systemd-resolved
 EOF
 
 sudo systemctl enable --now systemd-resolved
+
+# /etc/resolv.conf 交给 systemd-resolved 独占（stub 127.0.0.53）
+sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 sudo systemctl restart NetworkManager
 ```
+
+> [!NOTE]
+> Arch 的 NetworkManager 默认 `rc-manager=symlink`：`/etc/resolv.conf` 是普通文件时 NM 会自己写它，是 symlink 时就不再碰。改成指向 resolved stub 的 symlink 后，只有 resolved 负责 `/etc/resolv.conf`。
 
 > [!WARNING]
 > 不要使用 NetworkManager 的 dnsmasq 插件（会导致容器 DNS 指向 127.0.0.1）。
