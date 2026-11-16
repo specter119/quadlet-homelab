@@ -1,0 +1,16 @@
+# https://github.com/betterleaks/betterleaks
+#
+# Betterleaks v2 does not discover this file on its own: the hook passes
+# `--config .betterleaks.toml`.
+
+title = "quadlet-homelab betterleaks config"
+
+prefilter = '''
+matchesAny(attributes["path"], [
+  `\.enc$`,
+])
+
+'''
+
+[extend]
+useDefault = true

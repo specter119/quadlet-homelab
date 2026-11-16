@@ -51,8 +51,10 @@ rev = "v0.49.1"
 id = "markdownlint"
 
 [[repos]]
-repo = "https://github.com/gitleaks/gitleaks"
-rev = "v8.30.1"
-
-[[repos.hooks]]
-id = "gitleaks"
+repo = "https://github.com/betterleaks/betterleaks"
+rev = "v2.0.0-rc.8"
+hooks = [
+    # Betterleaks v2 only reads a config named on the command line, so the stock entry is
+    # repeated with `--config` to keep the SOPS allowlist in .betterleaks.toml.
+    { id = "betterleaks", entry = 'bash -o pipefail -c "git diff --cached --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ | betterleaks stdin --git-diff --redact --config .betterleaks.toml"' },
+]
