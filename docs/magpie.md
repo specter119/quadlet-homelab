@@ -25,7 +25,8 @@
 
 可选：用 `@magpie-community/gateway-nowledge-mem` 对接 [Nowledge Mem](nowledge-mem.md)（召回 + 采集）。以下仅针对模型请求，`/mcp` 不经过这些钩子。
 
-- `serverUrl=http://systemd-nowledge-mem:14242`：容器内的回环指向自己，跨容器只能走明文，所以插件要开 `allowInsecureHttp=true`，且仅限可信容器网络。
+- 插件 `serverUrl=http://systemd-nowledge-mem:14242`，并开启 `allowInsecureHttp`；该地址仅对同在 `traefik.network` 的容器有效。
+- Library › MCP 的条目还要带 Mem 的 API key 头（`Authorization: Bearer <nmem_...>`），否则 `/mcp` 会返回 401；key 在插件页填，不要放进 CLI 参数。
 - 带命名 key 的调用方都按 `gateway-key` 处理：当前 rootless 端口转发下，宿主回环的 `curl 127.0.0.1:3425` 也算这一类。需要召回/采集时分别开启 `recallRemote` / `captureRemote`；只采集用户消息时设 `captureFilter="human"`。
 - 插件页的 Test 按钮在 `magpie web` 模式下不可用，用真实模型请求验证；`apiKey` 只在插件页填，别走 CLI 参数（会留在 shell history）。
 - Mem 的蒸馏 LLM 若指向 Magpie（`http://systemd-magpie:3425/v1`），它自己的请求也会被召回、采集，形成回环。把 Mem 的 agent 名加入 `skipAgents`；agent 名取自 `usage.jsonl`，设置前先确认它非空且不与真实客户端重名。已形成回环时先停用插件：`magpie plugin off @magpie-community/gateway-nowledge-mem`。
