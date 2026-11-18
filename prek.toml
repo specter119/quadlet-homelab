@@ -52,7 +52,7 @@ id = "markdownlint"
 
 [[repos]]
 repo = "https://github.com/betterleaks/betterleaks"
-rev = "v2.0.0-rc.8"
+rev = "v2.0.0-rc.9"
 hooks = [
     # Betterleaks v2 only reads a config named on the command line, so the stock entry is
     # repeated with `--config` to keep the SOPS allowlist in .betterleaks.toml.
