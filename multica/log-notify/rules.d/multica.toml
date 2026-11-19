@@ -4,3 +4,5 @@ unit = "multica-server.service"
 pattern = 'Verification code for (?P<who>\S+): (?P<code>\d+)'
 title = "Multica 验证码"
 body = "{code}  ({who})"
+# 点通知只复制验证码本身，连邮箱一起复制反而不好粘。
+copy = "{code}"

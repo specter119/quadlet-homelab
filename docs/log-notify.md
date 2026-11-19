@@ -7,6 +7,8 @@ flowchart LR
   J[journald] --> W[log-notify.py]
   R[rules.d/*.toml] --> W
   W --> N[notify.sh]
+  N -->|WSL| T[Windows toast]
+  N -->|Linux| L[notify-send]
 ```
 
 ## 部署
@@ -31,19 +33,27 @@ unit = "multica-server.service"   # 必填，只扫描该 unit 的日志
 pattern = 'Verification code for (?P<who>\S+): (?P<code>\d+)'
 title = "Multica 验证码"
 body = "{code}  ({who})"          # 用命名分组格式化，{0} 是整段匹配
+copy = "{code}"                   # 可选，点击通知时复制的文本，默认等于 body
 ```
 
 - 必须写 `unit`：用 `journalctl -u` 在源头过滤，正则只对这些 unit 的新日志运行
 - 正则用 `search`，Python `re` 语法；TOML 里用单引号字面量，免去转义
 - 只跟随新日志（`-n 0`），watcher 停机期间的事件不会补发
 - 命中后只记录规则名，不记录匹配内容，因为内容可能是一次性密钥
+- `body` 只负责显示；`copy` 决定点击通知后进入剪贴板的内容，例如验证码只复制数字、不带邮箱
 
 ## 通知出口
 
-本仓库不实现通知发送，直接调用外部 dotfiles 仓库部署的 [`notify.sh`](https://github.com/specter119/dotfiles/blob/master/agent/share/cli-hooks/notify.sh)（WSL 弹 Windows 通知，Linux 走 `notify-send`）。标题通过 `NOTIFICATION_TITLE` 传入，找不到它时退回 `notify-send`。
+本仓库不实现通知发送，直接调用外部 dotfiles 仓库部署的 [`notify.sh`](https://github.com/specter119/dotfiles/blob/master/agent/share/cli-hooks/notify.sh)。标题通过 `NOTIFICATION_TITLE` 传入，点击复制内容通过 `NOTIFICATION_COPY` 传入（缺省为消息正文），找不到 `notify.sh` 时退回 `notify-send`。
+
+- **WSL**：发 WinRT toast，进入 Windows 通知中心历史并保留 7 天；点击 toast 本体即复制 `NOTIFICATION_COPY`，内容以 `http(s)://` 开头时再用默认浏览器打开
+- **Linux**：走 `notify-send`，点击行为由桌面环境决定
 
 > [!NOTE]
 > WSL 下 user manager 的 `PATH` 不含 `/mnt/c`，`log-notify.service` 因此在 WSL 分支显式把 `powershell.exe` 所在目录加进 `Environment=PATH=`，否则 `notify.sh` 会报 `PowerShell not available`。
+
+> [!NOTE]
+> toast 的点击处理由一个 GUI 子系统小 exe 完成：首次通知时自动编译到 `%LOCALAPPDATA%\log-notify\LogNotifyOpen.exe`，并注册 `lognotify:` 协议。用 `powershell.exe` 做协议处理器会闪黑窗，所以不能退回脚本。
 
 > [!IMPORTANT]
 > 依赖 [specter119/dotfiles](https://github.com/specter119/dotfiles) 的 `agent` package 把它部署到 `~/.local/share/cli-hooks/notify.sh`。通知相关的行为变更请改那边，不要在本仓库重复实现。路径可用环境变量 `LOG_NOTIFY_SH` 覆盖。
@@ -57,7 +67,6 @@ body = "{code}  ({who})"          # 用命名分组格式化，{0} 是整段匹�
 
 ## TODO
 
-- 通知点击直接打开链接：DeepSeek Harness 的 token 有 43 个字符，Windows 气泡里的文字无法复制，目前只能回到日志取链接。`notify.sh` 的 WSL 分支约 1 秒后销毁通知图标，点击回调拿不到事件，需要在 dotfiles 的 `notify.sh` 里解决，本仓库不重复实现
 - Magpie：目前没有已知的需要通知的日志模式。启动日志只有带 `?k=<MAGPIE_WEB_KEY>` 的访问链接；该 key 固定且已在 Podman Secret 中，与每次启动都变的 dsh token 不同，推送它没有收益。发现合适的事件（如上游 key 失效）后再补 `magpie/log-notify/rules.d/magpie.toml`
 
 ## 参考

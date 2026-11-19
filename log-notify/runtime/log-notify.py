@@ -8,6 +8,7 @@ Rules live in ~/.config/log-notify/rules.d/*.toml, one file per service:
     pattern = 'code for (?P<who>\\S+): (?P<code>\\d+)'
     title   = "Multica"
     body    = "{code} ({who})"              # str.format with the named groups
+    copy    = "{code}"                      # optional: what a toast click copies (default: body)
 """
 
 import json
@@ -46,6 +47,8 @@ def load_rules() -> dict[str, list[dict]]:
                     "re": re.compile(raw["pattern"]),
                     "title": raw.get("title", path.stem),
                     "body": raw.get("body", "{0}"),
+                    # Optional: what a toast click copies. Defaults to the body.
+                    "copy": raw.get("copy"),
                 }
                 by_unit.setdefault(raw["unit"], []).append(rule)
             except (KeyError, re.error) as exc:
@@ -53,14 +56,14 @@ def load_rules() -> dict[str, list[dict]]:
     return by_unit
 
 
-def notify(title: str, body: str) -> None:
+def notify(title: str, body: str, copy: str | None = None) -> None:
     # notify.sh (dotfiles) handles WSL toast vs. Linux notify-send.
     if NOTIFY_SH.exists():
         # Run via bash: the dotfiles symlink target is not marked executable.
-        cmd, env = (
-            ["bash", str(NOTIFY_SH), body],
-            {**os.environ, "NOTIFICATION_TITLE": title},
-        )
+        env = {**os.environ, "NOTIFICATION_TITLE": title}
+        if copy is not None:
+            env["NOTIFICATION_COPY"] = copy
+        cmd = ["bash", str(NOTIFY_SH), body]
     elif shutil.which("notify-send"):
         cmd, env = ["notify-send", title, body], os.environ
     else:
@@ -100,7 +103,13 @@ def main() -> int:
                     continue
                 # Never log the matched text: it may be a one-time secret.
                 log(f"rule {rule['name']} matched")
-                notify(rule["title"], rule["body"].format(m.group(0), **m.groupdict()))
+                body = rule["body"].format(m.group(0), **m.groupdict())
+                copy = (
+                    rule["copy"].format(m.group(0), **m.groupdict())
+                    if rule["copy"] is not None
+                    else body
+                )
+                notify(rule["title"], body, copy)
     return proc.returncode or 1
 
 
