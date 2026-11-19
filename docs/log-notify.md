@@ -13,7 +13,7 @@ flowchart LR
 
 | 内容 | 源                               | 目标                                        |
 | ---- | -------------------------------- | ------------------------------------------- |
-| 脚本 | `log-notify/runtime/`            | `~/.local/lib/log-notify/`                  |
+| 脚本 | `log-notify/runtime/`            | `~/.local/opt/log-notify/`                  |
 | 服务 | `log-notify/systemd/`            | `~/.config/systemd/user/log-notify.service` |
 | 规则 | `<service>/log-notify/rules.d/*` | `~/.config/log-notify/rules.d/`             |
 

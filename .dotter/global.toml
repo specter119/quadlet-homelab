@@ -78,14 +78,14 @@ volumes = []
 
 [nowledge-mem.files]
 nowledge-mem = '~/.config'
-'nowledge-mem/runtime' = '~/.local/lib/nowledge-mem'
+'nowledge-mem/runtime' = '~/.local/opt/nowledge-mem'
 
 [nowledge-mem.variables]
 nmem_api_key = ""
 
 [log-notify.files]
 log-notify = '~/.config'
-'log-notify/runtime' = '~/.local/lib/log-notify'
+'log-notify/runtime' = '~/.local/opt/log-notify'
 
 [suwayomi.files]
 suwayomi = '~/.config'
@@ -107,7 +107,7 @@ depends = ["traefik"]
 
 [deepseek-harness.files]
 deepseek-harness = '~/.config'
-'deepseek-harness/runtime' = { target = '~/.local/lib/deepseek-harness', type = 'template' }
+'deepseek-harness/runtime' = { target = '~/.local/opt/deepseek-harness', type = 'template' }
 
 [deepseek-harness.variables.deepseek-harness]
 volumes = []
@@ -124,9 +124,9 @@ depends = ["traefik", "postgres", "silo"]
 [raft.files]
 # 这里是 Raft **server** 栈；Raft Computer（client，dotfiles 仓库的 raft package）
 # 占用 ~/.local/share/raft（SLOCK_HOME）与 raft-computer.service。server 不使用任何
-# share/ 目录：脚本放 ~/.local/lib/raft（仅构建入口），可再生产物放 ~/.cache/raft。
+# share/ 目录：脚本放 ~/.local/opt/raft（仅构建入口），可再生产物放 ~/.cache/raft。
 raft = '~/.config'
-'raft/runtime' = '~/.local/lib/raft'
+'raft/runtime' = '~/.local/opt/raft'
 
 [raft.variables.raft]
 # 上游 release mirror 的 tag（每个版本一个 commit）。镜像（含 bootstrap SQL）都由它决定，

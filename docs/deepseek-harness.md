@@ -84,7 +84,7 @@ Web UI 的「打开配置文件」不可用：服务端调用 `xdg-open`，容�
 ## 构建和启动
 
 `deepseek-harness-prepare.service`（oneshot）执行部署副本
-`~/.local/lib/deepseek-harness/prepare-image.sh`：镜像存在且构建输入哈希未变时
+`~/.local/opt/deepseek-harness/prepare-image.sh`：镜像存在且构建输入哈希未变时
 幂等跳过，输入变化后重建 `:latest`。构建时若宿主机存在 `~/.npmrc`，通过
 `podman build --secret` 挂入 builder 的 npm install（同一底层 Artifactory 认证），
 secret 不进入镜像层；容器运行时不挂载 npmrc（dsh 以 `node` 用户运行，且把

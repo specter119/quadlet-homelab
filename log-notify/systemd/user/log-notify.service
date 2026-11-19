@@ -6,7 +6,7 @@ Description=Notify on journal log patterns
 # The user manager's PATH has no /mnt/c entries, so notify.sh cannot find powershell.exe.
 Environment=PATH=%h/.local/bin:%h/.nix-profile/bin:/usr/local/bin:/usr/bin:/mnt/c/Windows/System32/WindowsPowerShell/v1.0
 {{/if}}
-ExecStart=/usr/bin/python3 %h/.local/lib/log-notify/log-notify.py
+ExecStart=/usr/bin/python3 %h/.local/opt/log-notify/log-notify.py
 Restart=always
 RestartSec=5s
 # No rules -> the script exits 0; don't restart-loop in that case.

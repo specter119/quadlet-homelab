@@ -16,12 +16,12 @@ Raft 有两个互不相干的部分，共用 `raft` 这个名字，所以必须�
 | 管理者     | dotfiles 仓库的 `raft` package                         | 本仓库                                                                                               |
 | 程序/镜像  | `~/.local/bin/raft-computer`                           | `localhost/raft-{server,web,rw-bootstrap}`                                                           |
 | systemd    | `raft-computer.service`                                | `raft.target`、`raft-*`                                                                              |
-| 宿主机目录 | `~/.local/share/raft/`（`SLOCK_HOME`，含 `computer/`） | `~/.local/lib/raft/`（仅构建入口脚本）、`~/.cache/raft/`（上游源码、改写后的 Dockerfile、构建 hash） |
+| 宿主机目录 | `~/.local/share/raft/`（`SLOCK_HOME`，含 `computer/`） | `~/.local/opt/raft/`（仅构建入口脚本）、`~/.cache/raft/`（上游源码、改写后的 Dockerfile、构建 hash） |
 | 状态       | 同左                                                   | podman volume `raft-*`、共享 postgres、共享 silo                                                     |
 
 > [!IMPORTANT]
 > Server **不使用任何 `share/` 目录**：`~/.local/share/raft/` 归 client 独占，`[raft.files]`
-> 不要指向它。`~/.local/lib/raft/` 里只有构建入口，丢了重新 `dotter deploy` 即可；
+> 不要指向它。`~/.local/opt/raft/` 里只有构建入口，丢了重新 `dotter deploy` 即可；
 > `~/.cache/raft/` 里全是可再生产物。
 
 > [!NOTE]

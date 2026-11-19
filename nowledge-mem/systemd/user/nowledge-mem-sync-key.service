@@ -5,4 +5,4 @@ After=nowledge-mem.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/bash %h/.local/lib/nowledge-mem/sync-key.sh
+ExecStart=/usr/bin/bash %h/.local/opt/nowledge-mem/sync-key.sh

@@ -31,7 +31,7 @@ Base docs: [`docs/quadlet.md`](quadlet.md)
 ## 辅助 systemd 单元
 
 - `nowledge-mem-certifi-sync.path` / `.service`：保证宿主机 `nmem` CLI 信任 Traefik 证书。新版 `nmem-cli`（≥0.10.x）是原生 Rust ELF 二进制，不使用 python certifi；脚本检测到 ELF 后只验证 mkcert root CA 是否已装入**系统 CA 库**，缺失时按发行版打印安装命令（Debian/Ubuntu：`update-ca-certificates`；Arch：`update-ca-trust` 装到 `/etc/ca-certificates/trust-source/anchors/`）。**不注入任何 `SSL_CERT_FILE` 环境变量**（这类全局变量会污染所有 Rust/Go CLI 的证书验证）
-- `nowledge-mem-sync-key.service`：`nowledge-mem.service` 启动后由其 `Wants=` 触发，运行 `~/.local/lib/nowledge-mem/sync-key.sh`（见下文「API Key 同步」）
+- `nowledge-mem-sync-key.service`：`nowledge-mem.service` 启动后由其 `Wants=` 触发，运行 `~/.local/opt/nowledge-mem/sync-key.sh`（见下文「API Key 同步」）
 
 > [!IMPORTANT]
 > 切换到官方镜像后，本地镜像构建与更新检查机制（`nowledge-mem-prepare.service`、`nowledge-mem-check-update.service/.timer`、`prepare-image.sh`、`check-update.sh`、`Containerfile`）已整体移除。
