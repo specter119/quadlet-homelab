@@ -2,6 +2,8 @@
 
 通过 Tailscale Split DNS，从任意 tailnet 设备使用**相同域名**访问 homelab 服务。
 
+> WSL2 主机（`worklab.com`）的差异见 [tailscale-wsl.md](tailscale-wsl.md)。
+
 ## 架构
 
 以 Dozzle 为例，本地和远程使用相同 URL（`https://dozzle.homelab.com`）：
@@ -303,6 +305,54 @@ resolvectl query dozzle.homelab.com
 
 - `Global DNS Servers` 不应是 `127.0.0.1`
 - `Global` 应保留 `DNS Servers: 127.0.0.1` 和 `DNS Domain: ~homelab.com`；本方案不要求启用 Tailscale MagicDNS
+
+## 待验证
+
+2026-11-20 记录，均未实施。
+
+### `local-ttl`
+
+两个 dnsmasq 实例都没有设 `local-ttl`，实测 `worklab.com` 的应答 TTL 为 `0`（主实例与 tailnet 实例一致），按 DNS 语义客户端不应缓存，每次访问都要重新查询。
+
+拟在 `/etc/dnsmasq.d/worklab.conf` 与 `/etc/dnsmasq-tailnet.d/tailnet.conf` 各加一行 `local-ttl=300`。
+
+- 收益：远端 tailnet 设备不必每次经 DERP 往返；Windows 侧 NRPT 也能省掉重复查询
+- 代价：地址变更后，最长 300s 内客户端仍拿到旧 IP。影响面仅限 `worklab.com` 这个 zone，不改变其他域名的解析行为
+- `neg-ttl` 是另一项配置，本次不涉及；当前 `local=/worklab.com/` 加通配 `address=` 让该 zone 没有 NXDOMAIN 路径
+
+### dnsmasq 直接写死对端域名
+
+用 `local=` + `address=` 把对端域名固定成本机已知地址，省掉一次跨节点 DNS 查询：
+
+- office-wsl 解析 `homelab.com`：现在经 Split DNS 到 m600，实测 380ms~1.6s（随 DERP 抖动）；加 `local=/homelab.com/` + `address=/.homelab.com/100.94.150.93` 后走本地 dnsmasq，0ms
+- m600 解析 `worklab.com`：实测 m600 的 dnsmasq 是转发型，`worklab.com` 被送到公网并返回 `34.139.226.7`。需在 m600 的 dnsmasq 加 `local=/worklab.com/` + `address=/.worklab.com/100.88.64.107`，并让 systemd-resolved 把该域路由到 dnsmasq（`Domains=~worklab.com`）
+
+> [!NOTE]
+> 两侧都要显式写死，否则一端仍会绕公网。m600 侧的具体改法未验证。
+
+这也解释了 m600 访问 `worklab.com` 得到 404 的原因：`worklab.com` 在公网是别人的停放域名，通配 A 记录指向第三方占位站（实测任意子域同一地址，证书 `CN=*.wpengine.com`）。m600 没拿到本机地址，自然打到占位站。
+
+### m600 对 `worklab.com` 的转发
+
+现象：`dig +short worklab.com @100.94.150.93` 返回 `34.139.226.7`（公网地址，TTL 253），而同机 `homelab.com` 返回 `100.94.150.93`。可见 m600 的 dnsmasq 对 `worklab.com` 走的是递归转发，不是本地 zone。
+
+待确认：
+
+```bash
+tailscale debug prefs | grep -i corpDNS
+dig +short worklab.com
+```
+
+- `CorpDNS` 为 `false` 时，m600 不接收 Admin Console 下发的 Split DNS，`worklab.com` 只能靠本地 dnsmasq 或公网
+- 第二条不带 `@`，走系统解析链，用来判断 systemd-resolved 是否把该域转给了 dnsmasq
+
+[tailscale-relay.md](tailscale-relay.md) 里「m600 `--accept-dns=false`」的说法目前没有实测支撑，以上命令用于确认。
+
+### m600 当初关闭 `accept-dns` 的原因（假设）
+
+以下为假设，未验证：m600 的 `--accept-dns=false` 可能不是刻意设计，而是 setup 时序问题留下的结果 —— 预期是断外网也能用 homelab 域名直连，但 tailscaled 接管 DNS 后，`homelab.com` 变成必须先绕一趟 tailnet 才能解析，于是最后把这个开关关掉了。
+
+验证方式：看 m600 上 `tailscale debug prefs` 与 `/etc/resolv.conf` 的现状，确认是显式 `tailscale set` 还是 `tailscale up` 时的遗留。
 
 ## 安全注意事项
 

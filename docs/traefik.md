@@ -312,7 +312,7 @@ flowchart LR
    ip -4 -o addr show dev eth0 | awk '{print $4}' | cut -d/ -f1 | head -n1
    ```
 
-1. **写入 dnsmasq 配置**（将 `<WSL_IP>` 替换为实际 IP，如 `172.26.109.61`）：
+1. **写入 dnsmasq 配置**（将 `<WSL_IP>` 替换为上一步取到的实际 IP）：
 
    ```bash
    sudo tee /etc/dnsmasq.d/homelab.conf > /dev/null << 'EOF'
