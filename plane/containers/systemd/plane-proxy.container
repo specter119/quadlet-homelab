@@ -42,7 +42,7 @@ Label=traefik.http.routers.plane-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.plane-https.entrypoints=https
 Label=traefik.http.routers.plane-https.tls=true
-Label=traefik.http.routers.plane-https.middlewares=gzip@file
+Label=traefik.http.routers.plane-https.middlewares=compress@file
 Label=traefik.http.routers.plane-https.rule=Host(`plane.{{domain}}`)
 Label=traefik.http.services.plane.loadbalancer.server.port=80
 

@@ -40,7 +40,7 @@ Label=traefik.http.routers.multica-app-http.service=noop@internal
 Label=traefik.http.routers.multica-app-https.entrypoints=https
 Label=traefik.http.routers.multica-app-https.rule=Host(`multica.{{domain}}`)
 Label=traefik.http.routers.multica-app-https.tls=true
-Label=traefik.http.routers.multica-app-https.middlewares=gzip@file
+Label=traefik.http.routers.multica-app-https.middlewares=compress@file
 Label=traefik.http.services.multica-app.loadbalancer.server.port=3000
 
 [Install]

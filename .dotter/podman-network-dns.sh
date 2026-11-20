@@ -17,6 +17,9 @@ is_usable_dns() {
     [[ "$ip" != 198.19.* ]] || return 1
     [[ "$ip" != "::1" ]] || return 1
     [[ "$ip" != fe80:* ]] || return 1
+    # Tailscale MagicDNS: skipping it keeps container DNS independent of tailscaled.
+    [[ "$ip" != 100.100.100.100 ]] || return 1
+    [[ "$ip" != fd7a:115c:a1e0::53 ]] || return 1
 
     return 0
 }
@@ -96,5 +99,20 @@ emit_resolv_conf_dns() {
     done < "$resolv_conf"
 }
 
+emit_default_gateway_dns() {
+    local gateway
+
+    command -v ip >/dev/null 2>&1 || return 0
+
+    gateway=$(
+        ip -o -4 route show default 2>/dev/null \
+            | awk '{print $3; exit}'
+    )
+    [[ -n "$gateway" ]] || return 0
+
+    emit_dns "$gateway"
+}
+
 emit_dns_for_default_route
 [[ "$emitted" -ne 0 ]] || emit_resolv_conf_dns
+[[ "$emitted" -ne 0 ]] || emit_default_gateway_dns

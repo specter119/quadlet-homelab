@@ -56,7 +56,7 @@ Label=traefik.http.routers.deepseek-harness-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.deepseek-harness-https.entrypoints=https
 Label=traefik.http.routers.deepseek-harness-https.tls=true
-Label=traefik.http.routers.deepseek-harness-https.middlewares=homelab-internal@file,gzip@file
+Label=traefik.http.routers.deepseek-harness-https.middlewares=homelab-internal@file,compress@file
 Label=traefik.http.routers.deepseek-harness-https.rule=Host(`deepseek-harness.{{domain}}`)
 Label=traefik.http.services.deepseek-harness.loadbalancer.server.port=3080
 

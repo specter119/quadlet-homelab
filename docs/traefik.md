@@ -367,7 +367,7 @@ flowchart LR
 │  └── https (:443) → 业务服务                                 │
 ├─────────────────────────────────────────────────────────────┤
 │  File Provider (middlewares.toml)                           │
-│  ├── 共享中间件: gzip, redir-https                           │
+│  ├── 共享中间件: compress, redir-https                       │
 │  └── Dashboard 路由 → api@internal                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Docker Provider (container labels)                         │
@@ -404,7 +404,7 @@ flowchart LR
   rule = "Host(`traefik.{{domain}}`)"
   entrypoints = ["https"]
   service = "api@internal"
-  middlewares = ["homelab-internal", "gzip"]
+  middlewares = ["homelab-internal", "compress"]
   [http.routers.traefik-dashboard.tls]
 ```
 
@@ -415,7 +415,7 @@ flowchart LR
 ```toml
 [http.middlewares]
   # Compression (zstd preferred, gzip fallback)
-  [http.middlewares.gzip.compress]
+  [http.middlewares.compress.compress]
     encodings = ["zstd", "gzip"]
 
   [http.middlewares.redir-https.redirectScheme]

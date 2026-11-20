@@ -44,7 +44,7 @@ Label=traefik.http.routers.omnivore-http.service=noop@internal
 Label=traefik.http.routers.omnivore-https.entrypoints=https
 Label=traefik.http.routers.omnivore-https.rule=Host(`omnivore.{{domain}}`)
 Label=traefik.http.routers.omnivore-https.tls=true
-Label=traefik.http.routers.omnivore-https.middlewares=gzip@file
+Label=traefik.http.routers.omnivore-https.middlewares=compress@file
 Label=traefik.http.services.omnivore.loadbalancer.server.port=8080
 
 [Install]

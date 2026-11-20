@@ -56,7 +56,7 @@ Label=traefik.http.routers.nowledge-mem-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.nowledge-mem-https.entrypoints=https
 Label=traefik.http.routers.nowledge-mem-https.tls=true
-Label=traefik.http.routers.nowledge-mem-https.middlewares=gzip@file,nowledge-mem-root@docker
+Label=traefik.http.routers.nowledge-mem-https.middlewares=compress@file,nowledge-mem-root@docker
 Label=traefik.http.routers.nowledge-mem-https.rule=Host(`nowledge-mem.{{domain}}`)
 Label=traefik.http.services.nowledge-mem.loadbalancer.server.port=14242
 

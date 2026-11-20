@@ -1,10 +1,10 @@
 # Shared Middlewares
-# Referenced by containers using @file suffix, e.g., middlewares=gzip@file
+# Referenced by containers using @file suffix, e.g., middlewares=compress@file
 
 [http.middlewares]
 
   # Compression (zstd preferred, gzip fallback)
-  [http.middlewares.gzip.compress]
+  [http.middlewares.compress.compress]
     encodings = ["zstd", "gzip"]
 
   # HTTP to HTTPS redirect
@@ -27,7 +27,7 @@
     rule = "Host(`traefik.{{domain}}`)"
     entrypoints = ["https"]
     service = "api@internal"
-    middlewares = ["homelab-internal", "gzip"]
+    middlewares = ["homelab-internal", "compress"]
     [http.routers.traefik-dashboard.tls]
 
   [http.routers.traefik-http]

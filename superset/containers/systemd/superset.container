@@ -40,7 +40,7 @@ Label=traefik.http.routers.superset-http.service=noop@internal
 Label=traefik.http.routers.superset-https.entrypoints=https
 Label=traefik.http.routers.superset-https.rule=Host(`superset.{{domain}}`)
 Label=traefik.http.routers.superset-https.tls=true
-Label=traefik.http.routers.superset-https.middlewares=gzip@file
+Label=traefik.http.routers.superset-https.middlewares=compress@file
 Label=traefik.http.services.superset.loadbalancer.server.port=8088
 
 [Install]

@@ -51,7 +51,7 @@ Label=traefik.http.routers.unsloth-studio-http.service=noop@internal
 # Studio HTTPS
 Label=traefik.http.routers.unsloth-studio-https.entrypoints=https
 Label=traefik.http.routers.unsloth-studio-https.tls=true
-Label=traefik.http.routers.unsloth-studio-https.middlewares=gzip@file
+Label=traefik.http.routers.unsloth-studio-https.middlewares=compress@file
 Label=traefik.http.routers.unsloth-studio-https.rule=Host(`unsloth.{{domain}}`)
 Label=traefik.http.routers.unsloth-studio-https.service=unsloth-studio@docker
 Label=traefik.http.services.unsloth-studio.loadbalancer.server.port=8000
@@ -65,7 +65,7 @@ Label=traefik.http.routers.unsloth-jupyter-http.service=noop@internal
 # Jupyter HTTPS
 Label=traefik.http.routers.unsloth-jupyter-https.entrypoints=https
 Label=traefik.http.routers.unsloth-jupyter-https.tls=true
-Label=traefik.http.routers.unsloth-jupyter-https.middlewares=gzip@file
+Label=traefik.http.routers.unsloth-jupyter-https.middlewares=compress@file
 Label=traefik.http.routers.unsloth-jupyter-https.rule=Host(`jupyterlab.unsloth.{{domain}}`)
 Label=traefik.http.routers.unsloth-jupyter-https.service=unsloth-jupyter@docker
 Label=traefik.http.services.unsloth-jupyter.loadbalancer.server.port=8888

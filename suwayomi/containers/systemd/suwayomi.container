@@ -40,7 +40,7 @@ Label=traefik.http.routers.suwayomi-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.suwayomi-https.entrypoints=https
 Label=traefik.http.routers.suwayomi-https.tls=true
-Label=traefik.http.routers.suwayomi-https.middlewares=gzip@file
+Label=traefik.http.routers.suwayomi-https.middlewares=compress@file
 Label=traefik.http.routers.suwayomi-https.rule=Host(`suwayomi.{{domain}}`)
 Label=traefik.http.services.suwayomi.loadbalancer.server.port=4567
 

@@ -39,7 +39,7 @@ Label=traefik.http.routers.silverbullet-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.silverbullet-https.entrypoints=https
 Label=traefik.http.routers.silverbullet-https.tls=true
-Label=traefik.http.routers.silverbullet-https.middlewares=gzip@file
+Label=traefik.http.routers.silverbullet-https.middlewares=compress@file
 Label=traefik.http.routers.silverbullet-https.rule=Host(`silverbullet.{{domain}}`)
 Label=traefik.http.services.silverbullet.loadbalancer.server.port=3000
 

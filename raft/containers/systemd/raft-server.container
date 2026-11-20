@@ -81,7 +81,7 @@ Label=traefik.http.routers.raft-api-http.service=noop@internal
 # HTTPS（Socket.IO 走同一端口，Traefik 原生支持 WS 升级）
 Label=traefik.http.routers.raft-api-https.entrypoints=https
 Label=traefik.http.routers.raft-api-https.tls=true
-Label=traefik.http.routers.raft-api-https.middlewares=homelab-internal@file,gzip@file
+Label=traefik.http.routers.raft-api-https.middlewares=homelab-internal@file,compress@file
 Label=traefik.http.routers.raft-api-https.rule=Host(`raft-api.{{domain}}`)
 Label=traefik.http.services.raft-api.loadbalancer.server.port=3001
 

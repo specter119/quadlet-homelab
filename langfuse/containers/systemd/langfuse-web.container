@@ -90,7 +90,7 @@ Label=traefik.http.routers.langfuse-http.service=noop@internal
 Label=traefik.http.routers.langfuse-https.entrypoints=https
 Label=traefik.http.routers.langfuse-https.rule=Host(`langfuse.{{domain}}`)
 Label=traefik.http.routers.langfuse-https.tls=true
-Label=traefik.http.routers.langfuse-https.middlewares=gzip@file
+Label=traefik.http.routers.langfuse-https.middlewares=compress@file
 Label=traefik.http.services.langfuse.loadbalancer.server.port=3000
 
 [Install]

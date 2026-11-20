@@ -41,7 +41,7 @@ Label=traefik.http.routers.phoenix-http.service=noop@internal
 # HTTPS UI and OTLP HTTP collector
 Label=traefik.http.routers.phoenix-https.entrypoints=https
 Label=traefik.http.routers.phoenix-https.tls=true
-Label=traefik.http.routers.phoenix-https.middlewares=gzip@file
+Label=traefik.http.routers.phoenix-https.middlewares=compress@file
 Label=traefik.http.routers.phoenix-https.rule=Host(`phoenix.{{domain}}`)
 Label=traefik.http.routers.phoenix-https.service=phoenix
 Label=traefik.http.services.phoenix.loadbalancer.server.port=6006

@@ -1,13 +1,18 @@
 [global]
 checknewversion = false
 sendanonymoususage = false
+# Drop request headers whose name aliases another one (e.g. X_Auth_User for X-Auth-User).
+aliasHeadersStrategy = "delete"
 
 # API and Dashboard (dashboard enabled by default)
 # insecure = true creates automatic entrypoint on :8080
 # For HTTPS access, use file provider router to api@internal
 [api]
 
+# manualRouting keeps Traefik from auto-creating the internal `traefik`
+# entrypoint on :8080, which has no socket activation listener.
 [ping]
+manualRouting = true
 
 [entryPoints.http]
 address = ":80"
@@ -24,10 +29,6 @@ trustedIPs = ["127.0.0.1/32", "172.0.0.0/8", "10.0.0.0/8"]
 
 [entryPoints.https.http3]
 advertisedPort = 443
-
-# Disable default traefik entrypoint (API uses file provider router instead)
-[entryPoints.traefik]
-address = ""
 
 [providers.docker]
 endpoint = "unix:///var/run/docker.sock"

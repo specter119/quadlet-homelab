@@ -41,7 +41,7 @@ plane.network       ← plane 栈内部通信
 - `postgres/silo`：通过 `render_networks.sh` 动态加入依赖它们的业务子网，不加入 traefik.network
 
 > [!NOTE]
-> `traefik.network` 使用 Podman 自定义 bridge 网络，启用 aardvark DNS 以支持容器名解析。这里的 `DNS=` 渲染是针对宿主机 `/etc/resolv.conf` 使用本地 stub（如 `127.0.0.53`、`127.0.0.1`）时的兼容补丁：脚本只读取内核默认路由接口对应的 DNS，发现不到时再从 `/etc/resolv.conf` 读取非本地 stub 的 nameserver，最多输出一个候选。它不会扫描所有链路，也不保证候选 DNS 在容器网络中可达；发现不到候选时不生成 `DNS=`，保留 Podman 默认行为。
+> `traefik.network` 使用 Podman 自定义 bridge 网络，启用 aardvark DNS 以支持容器名解析。这里的 `DNS=` 渲染是针对宿主机 `/etc/resolv.conf` 使用本地 stub（如 `127.0.0.53`、`127.0.0.1`）时的兼容补丁：脚本只读取内核默认路由接口对应的 DNS，发现不到时再从 `/etc/resolv.conf` 读取非本地 stub 的 nameserver，最多输出一个候选；都没有候选时回退到默认路由网关。Tailscale MagicDNS（`100.100.100.100`、`fd7a:115c:a1e0::53`）会被跳过，避免容器外部解析依赖 tailscaled。它不会扫描所有链路，也不保证候选 DNS 在容器网络中可达。
 
 ```mermaid
 flowchart LR
@@ -112,7 +112,7 @@ Label=traefik.http.routers.<service>-http.service=noop@internal
 Label=traefik.http.routers.<service>-https.entrypoints=https
 Label=traefik.http.routers.<service>-https.rule=Host(`<service>.{{domain}}`)
 Label=traefik.http.routers.<service>-https.tls=true
-Label=traefik.http.routers.<service>-https.middlewares=gzip@file
+Label=traefik.http.routers.<service>-https.middlewares=compress@file
 Label=traefik.http.services.<service>.loadbalancer.server.port=<port>
 
 \{{#if (contains autostart_services "<service>")}}
@@ -128,7 +128,7 @@ WantedBy=default.target
 - `DefaultDependencies=false`: 仅在 WSL 环境下添加，禁用 Quadlet 默认的网络依赖避免启动超时
 - `domain`: Dotter 共享变量，默认值与本机覆盖规则见 [docs/dotter.md](dotter.md)
 - `autostart_services`: 自启动服务列表，在 `.dotter/local.toml` 的 `[variables]` 中设置，使用自定义 `contains` helper 判断
-- `redir-https@file`, `gzip@file`: 引用 `middlewares.toml` 中定义的共享中间件
+- `redir-https@file`, `compress@file`: 引用 `middlewares.toml` 中定义的共享中间件
 - `noop@internal`: Traefik 内置空服务，用于重定向场景
 
 **可选配置**：

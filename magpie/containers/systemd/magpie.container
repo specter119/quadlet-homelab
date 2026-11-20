@@ -49,7 +49,7 @@ Label=traefik.http.routers.magpie-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.magpie-https.entrypoints=https
 Label=traefik.http.routers.magpie-https.tls=true
-Label=traefik.http.routers.magpie-https.middlewares=gzip@file
+Label=traefik.http.routers.magpie-https.middlewares=compress@file
 Label=traefik.http.routers.magpie-https.rule=Host(`magpie.{{domain}}`)
 Label=traefik.http.services.magpie.loadbalancer.server.port=3430
 

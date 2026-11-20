@@ -43,7 +43,7 @@ Label=traefik.http.routers.raft-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.raft-https.entrypoints=https
 Label=traefik.http.routers.raft-https.tls=true
-Label=traefik.http.routers.raft-https.middlewares=homelab-internal@file,gzip@file
+Label=traefik.http.routers.raft-https.middlewares=homelab-internal@file,compress@file
 Label=traefik.http.routers.raft-https.rule=Host(`raft.{{domain}}`)
 Label=traefik.http.services.raft.loadbalancer.server.port=80
 

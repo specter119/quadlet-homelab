@@ -41,7 +41,7 @@ Label=traefik.http.routers.dozzle-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.dozzle-https.entrypoints=https
 Label=traefik.http.routers.dozzle-https.tls=true
-Label=traefik.http.routers.dozzle-https.middlewares=gzip@file
+Label=traefik.http.routers.dozzle-https.middlewares=compress@file
 Label=traefik.http.routers.dozzle-https.rule=Host(`dozzle.{{domain}}`)
 Label=traefik.http.services.dozzle.loadbalancer.server.port=8080
 

@@ -47,7 +47,7 @@ Label=traefik.http.routers.lunatv-http.service=noop@internal
 # HTTPS
 Label=traefik.http.routers.lunatv-https.entrypoints=https
 Label=traefik.http.routers.lunatv-https.tls=true
-Label=traefik.http.routers.lunatv-https.middlewares=gzip@file
+Label=traefik.http.routers.lunatv-https.middlewares=compress@file
 Label=traefik.http.routers.lunatv-https.rule=Host(`lunatv.{{domain}}`)
 Label=traefik.http.services.lunatv.loadbalancer.server.port=3000
 
