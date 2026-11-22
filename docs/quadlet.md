@@ -40,28 +40,43 @@ plane.network       ← plane 栈内部通信
 - 业务子网：栈内部通信，worker/redis 等不暴露到代理网络
 - `postgres/silo`：通过 `render_networks.sh` 动态加入依赖它们的业务子网，不加入 traefik.network
 
-> [!NOTE]
-> `traefik.network` 使用 Podman 自定义 bridge 网络，启用 aardvark DNS 以支持容器名解析。这里的 `DNS=` 渲染是针对宿主机 `/etc/resolv.conf` 使用本地 stub（如 `127.0.0.53`、`127.0.0.1`）时的兼容补丁：脚本只读取内核默认路由接口对应的 DNS，发现不到时再从 `/etc/resolv.conf` 读取非本地 stub 的 nameserver，最多输出一个候选；都没有候选时回退到默认路由网关。Tailscale MagicDNS（`100.100.100.100`、`fd7a:115c:a1e0::53`）会被跳过，避免容器外部解析依赖 tailscaled。它不会扫描所有链路，也不保证候选 DNS 在容器网络中可达。
+### 容器的外部 DNS
+
+自定义 bridge 网络启用 aardvark DNS 以支持容器名解析，非容器名的查询由 aardvark 转发到上游。上游有两种来源：
 
 ```mermaid
 flowchart LR
-    c["Container on traefik.network"]
-    resolv["/etc/resolv.conf\nnameserver 10.89.0.1"]
-    aardvark["aardvark-dns\nPodman network DNS"]
-    names["container names\nsystemd-traefik, aliases"]
-    external["external domains\npypi / registries / APIs"]
-    upstream["generated DNS=\ndefault-route candidate"]
+    c["Container"]
+    gw["aardvark-dns\nnetwork gateway"]
+    names["container names\nand aliases"]
+    pin["DNS= pinned uplink\n(deploy-time)"]
+    fwd["169.254.1.1\n(pasta)"]
+    host["host resolver\n(resolved stub)"]
 
-    c --> resolv --> aardvark
-    aardvark --> names
-    aardvark --> upstream --> external
+    c --> gw
+    gw --> names
+    gw -->|"network has DNS="| pin
+    gw -->|"no DNS="| fwd --> host
 ```
 
-不要关闭 `traefik.network` 的 DNS 插件来规避这个问题，否则会丢失同一自定义网络内的容器名解析。这里仅自动提供默认路由 DNS 候选；实际外部解析仍取决于宿主机路由、防火墙和 DNS 服务是否允许容器网络访问。
+- **默认路径（网络没有 `DNS=`）**：上游是 `169.254.1.1`，由 pasta 转给宿主机 `/etc/resolv.conf` 的第一个 nameserver，后面跟着 `/run/systemd/resolve/resolv.conf` 里所有非回环的条目。Podman 能识别 resolved stub（`127.0.0.53`），所以 stub 主机不需要额外处理。容器因此继承宿主机的分域路由：能解析 `*.ts.net`，也能随宿主机换网自动跟随。代价是宿主机的本地域名也会透进来，例如 m600 上容器查 `*.{{domain}}` 得到 `127.0.0.1`，指向容器自己，没有用。
+- **模板路径（`DNS=` 由 `.dotter/podman-network-dns.sh` 渲染）**：固定一个真实上联，只读取内核默认路由接口对应的 DNS，发现不到时再从 `/etc/resolv.conf` 读非回环 nameserver，都没有时回退到默认网关，最多输出一个候选。Tailscale MagicDNS（`100.100.100.100`、`fd7a:115c:a1e0::53`）、回环、link-local 以及 mihomo fake-ip 常用的网段会被跳过，所以容器外部解析不依赖 tailscaled 或代理。代价：`DNS=` 在 `dotter deploy` 时计算，不随 DHCP、VPN 或代理变化重算；`*.{{domain}}` 会被发往公网 DNS，同样没有用；不保证候选 DNS 在容器网络中可达。容器之间应该用容器名或 alias 互访，不要用 `*.{{domain}}`。
 
-`DNS=` 在 `dotter deploy` 渲染时计算，不会随 DHCP、VPN 或代理状态变化自动重算。网络环境变化后需要重新部署，并用 `podman network inspect systemd-traefik` 确认已部署网络里的 `network_dns_servers` 是否符合预期；如果既有 Podman network 没有应用新值，需要重启相关 Quadlet unit 或手动更新该网络。
+这一补丁来自 marimo 通过自定义 bridge 访问外部 Python mirror 的排障案例，它不把 Tailscale、mihomo 或 split DNS 视为必需依赖。
 
-这一补丁来自 marimo 通过自定义 bridge 访问外部 Python mirror 的排障案例，适用于同一类 Podman/aardvark 外部解析问题；它不把 Tailscale、mihomo 或 split DNS 视为必需依赖。
+> [!NOTE]
+> 哪些网络渲染模板：`traefik.network`，以及含有「需要外网、且不在 `traefik.network` 上」的容器的子网（目前是 `langfuse`、`omnivore`），其余网络保持默认。同时加入两个网络的容器，`/etc/resolv.conf` 里有两个网关，只有前一个返回 SERVFAIL 或超时才会换到下一个，返回 NXDOMAIN 不会换。没有 `DNS=` 不等于隔离：网络不会因此被阻断，只有 `Internal=true` 会切断出网（并让非容器名一律返回 NXDOMAIN），目前没有使用。
+
+不要关闭 `traefik.network` 的 DNS 插件来规避解析问题，否则会丢失同一自定义网络内的容器名解析。
+
+**刷新**：这里有两份快照，刷新方式不同。
+
+| 快照                                                   | 何时生成                       | 刷新                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 网络里的 `DNS=`                                        | `dotter deploy`                | 重新部署后，`podman network update --dns-drop <旧> --dns-add <新> systemd-<name>`，或停掉该网络上的容器后 `podman network rm` 再启动；网络单元执行的是 `podman network create --ignore`，只重启单元不会套用新值。用 `podman network inspect` 核对 `network_dns_servers` |
+| rootless netns 的 `resolv.conf`，以及 pasta 的转发目标 | 第一个容器启动、netns 被创建时 | 停掉**全部**容器（含 `http.socket`、`https.socket`，避免 socket 激活把 traefik 提前拉起）后重新启动。宿主机第一个 nameserver 变化后需要这样做                                                                                                                           |
+
+核对 netns 快照：容器运行时执行 `podman unshare --rootless-netns cat /etc/resolv.conf`。没有容器运行时执行它会新建临时 netns，结果不代表实际状态。
 
 **示例**：langfuse-web 加入两个网络（被代理 + 栈内部），langfuse-worker 只加入栈内部网络。
 

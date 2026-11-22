@@ -1,1 +1,2 @@
 [Network]
+{{command_output ".dotter/podman-network-dns.sh"}}
