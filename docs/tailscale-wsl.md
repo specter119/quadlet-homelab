@@ -4,13 +4,16 @@ homelab 运行在 WSL2（Debian 13）内、域名为 `worklab.com` 时的接入�
 
 ## 与 m600 的差异
 
-| 项           | m600                                         | WSL2                                                                     |
-| ------------ | -------------------------------------------- | ------------------------------------------------------------------------ |
-| 域名         | `homelab.com`                                | `worklab.com`                                                            |
-| 本机解析     | systemd-resolved + NetworkManager dispatcher | tailscaled 接管 `/etc/resolv.conf`（`100.100.100.100`）；Windows 走 NRPT |
-| 主实例       | 监听 `127.0.0.1`，答 `127.0.0.1`             | 监听 `<WSL_IP>`，答 `<WSL_IP>`，供 Windows NRPT 使用                     |
-| tailnet 实例 | 自写 `dnsmasq@.service`                      | Debian 自带 `dnsmasq@.service`                                           |
-| 网络         | 物理网卡                                     | WSL2 NAT，发不出公网 UDP，peer 全部走 DERP                               |
+| 项           | m600                                         | WSL2                                                                                                                                                                                         |
+| ------------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 域名         | `homelab.com`                                | `worklab.com`                                                                                                                                                                                |
+| 本机解析     | systemd-resolved + NetworkManager dispatcher | 默认无 systemd-resolved，tailscaled 接管 `/etc/resolv.conf`（`100.100.100.100`），可选方案见[改用 systemd-resolved](#%E5%8F%AF%E9%80%89%E6%94%B9%E7%94%A8-systemd-resolved)；Windows 走 NRPT |
+| 主实例       | 监听 `127.0.0.1`，答 `127.0.0.1`             | 监听 `<WSL_IP>`，答 `<WSL_IP>`，供 Windows NRPT 使用                                                                                                                                         |
+| tailnet 实例 | 自写 `dnsmasq@.service`                      | Debian 自带 `dnsmasq@.service`                                                                                                                                                               |
+| 网络         | 物理网卡                                     | WSL2 NAT，发不出公网 UDP，peer 全部走 DERP                                                                                                                                                   |
+
+> [!NOTE]
+> WSL 自身解析 `*.worklab.com` 走的是 Split DNS（`100.100.100.100` → `<WSL_TS_IP>` 上的 tailnet 实例），不经过主实例；主实例只服务 Windows NRPT。所以默认模式下 tailscaled 停止后，WSL 内部也解析不了 `*.worklab.com`（`resolv.conf` 还原为 WSL 自带的上游 DNS），但 Windows 侧不受影响。
 
 > [!NOTE]
 > Windows 浏览器经 NRPT 查询，必须拿到 `<WSL_IP>`，否则到不了 `100.64.0.0/10`；tailnet 设备必须拿到 `<WSL_TS_IP>`。所以两个实例各答各的，理由与 m600 相同。
@@ -78,6 +81,35 @@ curl -sk -o /dev/null -w '%{http_code}\n' \
   --resolve dozzle.worklab.com:443:<WSL_TS_IP> https://dozzle.worklab.com
 ```
 
+## 可选：改用 systemd-resolved
+
+默认情况下 WSL 没有 systemd-resolved，tailscaled 以 `direct` 模式改写 `/etc/resolv.conf`（`CorpDNS: true`）。改用 resolved 后结构与 m600 一致：`resolv.conf` 指向 resolved 的 stub，tailscaled 只配置 `tailscale0`，tailscaled 停止不再影响 WSL 自身解析。不想接管时，也可以只执行 `sudo tailscale set --accept-dns=false`，代价是 WSL 内部不再解析 `*.ts.net`、`homelab.com` 和 `worklab.com`。
+
+> [!IMPORTANT]
+> tailscaled 只看 `/etc/resolv.conf` 的内容归属选择模式：必须指向 `/run/systemd/resolve/stub-resolv.conf`，仅装上 resolved、`resolv.conf` 仍指向 `/mnt/wsl/resolv.conf` 时它依然走 `direct`。
+
+`<WIN_DNS>` 取 `/mnt/wsl/resolv.conf` 中的 nameserver（NAT 模式下即默认网关）：
+
+```bash
+sudo apt install -y systemd-resolved   # 安装脚本会把 /etc/resolv.conf 换成指向 stub 的符号链接
+sudo mkdir -p /etc/systemd/resolved.conf.d
+printf '[Resolve]\nDNS=<WIN_DNS>\n' | sudo tee /etc/systemd/resolved.conf.d/wsl-upstream.conf
+sudo systemctl enable --now systemd-resolved && sudo systemctl restart systemd-resolved
+# /etc/wsl.conf 的 [network] 加 generateResolvConf = false，wsl --shutdown 后生效
+sudo systemctl stop tailscaled         # 还原被接管的 resolv.conf
+sudo ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+sudo systemctl start tailscaled
+```
+
+不配 `DNS=` 时 resolved 会回退到公网 Fallback DNS，而本机公网 UDP 不通，也绕开了 Windows 侧 DNS。tailscaled 官方单元已带 `After=systemd-resolved.service`，不需要额外的顺序单元。
+
+验证：tailscaled 日志出现 `using "systemd-resolved" mode`，`resolvectl status` 里 `tailscale0` 带 `~worklab.com`、`~homelab.com`、`~ts.net`，公网域名走 eth0。
+
+> [!WARNING]
+> 切换前已经在运行的容器仍沿用旧的 rootless netns 快照：`169.254.1.1` 指向切换前的 `100.100.100.100`，resolved 模式下它对公网域名返回 SERVFAIL，表现为容器里能解析 `worklab.com`、解析不了公网域名。停掉**全部**容器（含 `http.socket`、`https.socket`）再启动即可重建快照，机制与核对方法见 [quadlet.md](quadlet.md#%E5%AE%B9%E5%99%A8%E7%9A%84%E5%A4%96%E9%83%A8-dns)。预期快照是 `169.254.1.1` 加上 `/run/systemd/resolve/resolv.conf` 中的非回环条目。`wsl --shutdown` 预期等价，未验证。
+
+回滚：停止 tailscaled，删除 `/etc/systemd/resolved.conf.d/wsl-upstream.conf`，`ln -sfn /mnt/wsl/resolv.conf /etc/resolv.conf`，还原 `/etc/wsl.conf`，`systemctl disable --now systemd-resolved`，再启动 tailscaled。
+
 ## 已知限制
 
 - **全部走 DERP**：`tailscale netcheck` 显示 `UDP: false`，本机发不出公网 UDP，所有 peer 只能走 DERP。能用但延迟高于直连，详见下一节。
@@ -107,10 +139,10 @@ dig +tcp +time=3 +tries=1 @1.1.1.1 example.com   # 正常
 > [!IMPORTANT]
 > 「公网 UDP 不通」不等于「tailnet 内 UDP 不通」。m600 到 `<WSL_TS_IP>:53` 的 UDP 查询能正常应答，只是慢。不要据此推断 ACL 丢弃了 UDP 53。
 
-**对 DNS 的影响**：`worklab.com` 的 Split DNS 指向 `<WSL_TS_IP>:53`，UDP 查询约 1.9s，TCP 约 380ms，dnsmasq 日志证实查询到达并被应答，所以不是 ACL 或 dnsmasq 配置问题，是 DERP 中继放大了 UDP 延迟。
+**对 DNS 的影响**：`worklab.com` 的 Split DNS 指向 `<WSL_TS_IP>:53`，UDP 查询约 0.4s（一次 DERP 往返），TCP 约 0.8s（多一次握手），dnsmasq 日志证实查询到达并被应答，所以不是 ACL 或 dnsmasq 配置问题，是 DERP 中继的固有延迟。曾观测到 UDP 约 1.9s 的间歇性慢响应，后续未复现。
 
 > [!WARNING]
-> 测这条链路不要用 `dig +time=2`：回包约 1.9s 才到，会间歇性超时，容易误判成「UDP 不通」。至少用 `+time=3`，并以 dnsmasq 日志为准。
+> 测这条链路不要用 `dig +time=2`，DERP 抖动时容易误判成「UDP 不通」。至少用 `+time=3`，并以 dnsmasq 日志为准。
 
 > [!TIP]
 > 手机 App 不显示连接路径。设备详情页右上角的 Ping 图标 → 结果标题下方显示 `Direct connection`、`Relayed connection (<region>)` 或 `Peer relayed connection`。Linux 上看 `tailscale status`：`active; direct <ip:port>` 是直连，`active; relay "<region>"` 是 DERP。
