@@ -21,6 +21,33 @@
 
 - `MAGPIE_PUBLIC_URL=https://magpie.<domain>` 只改变 UI 展示和复制出来的地址，不覆盖 Library 自动登记的 MCP 地址（由 `MAGPIE_ADDR` 推导，每次插件加载都会重写）；外部应用直接填上面那行里的 HTTPS MCP 地址和 Bearer key。
 
+## 连接宿主的 llama.cpp（本机特例）
+
+宿主的 `llama-server`（dotfiles 仓库 `llama.cpp/`，监听 `0.0.0.0:8080`）不经 Traefik，直接把 Magpie 当 OpenAI 兼容 provider 接进来：
+
+- 容器到宿主用 `host.containers.internal`（rootless podman 下解析为 `169.254.1.2`）；容器内 `127.0.0.1:8080` 指向容器自己，必须换成这个名字。
+- `llama-server` 不校验 `Authorization`，`key=local` 只是占位符。
+- `llama-server` 的 `/v1/models` 返回的 id 是 gguf 全路径，用 `models=` 显式给一个短名，避免路径进模型名。
+
+在容器内执行（CLI 与 `magpie web` 共用同一份 `~/.config/magpie/providers.json`）：
+
+```bash
+magpie provider add local-llamacpp \
+  url=http://host.containers.internal:8080/v1 \
+  key=local \
+  models=inkling-2-mini
+magpie provider test local-llamacpp   # ✓ chat … inkling-2-mini
+```
+
+网关侧的模型名是 `local-llamacpp/inkling-2-mini`。
+
+> [!NOTE]
+> 本机验证过的能力：流式 / 非流式、tool call 与 tool result 回传、`reasoning_effort` 透传、图片输入（`--mmproj` 已加载）、Anthropic `/v1/messages` 与 `/v1/responses`。
+> `reasoning_content` 单独占 completion token：`max_tokens` 给小了只会出思考、`content` 为空，用 `reasoning_effort=low` 或放大上限。
+
+> [!IMPORTANT]
+> provider 记录只在宿主 `~/.config/magpie/providers.json`（本仓库不分发该文件），重建宿主配置后需要再执行一次上面两条命令。
+
 ## 记忆插件（Nowledge Mem）
 
 可选：用 `@magpie-community/gateway-nowledge-mem` 对接 [Nowledge Mem](nowledge-mem.md)（召回 + 采集）。以下仅针对模型请求，`/mcp` 不经过这些钩子。
